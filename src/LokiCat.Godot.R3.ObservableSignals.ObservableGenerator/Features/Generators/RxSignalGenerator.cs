@@ -15,6 +15,15 @@ public sealed class RxSignalGenerator : ISourceGenerator
 
     public void Execute(GeneratorExecutionContext context)
     {
+        // NEW: Emit a dummy diagnostic to force this generator to appear
+        var descriptor = new DiagnosticDescriptor(
+            id: "RXSG0001",
+            title: $"{nameof(RxSignalGenerator)} Running",
+            messageFormat: $"{nameof(RxSignalGenerator)} is active in this compilation.",
+            category: nameof(RxSignalGenerator),
+            DiagnosticSeverity.Info,
+            isEnabledByDefault: true
+        );
         AddAttributeClass(context);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {

@@ -1,69 +1,20 @@
 ﻿# LokiCat.Godot.R3.ObservableSignals
 
-**R3-compatible source generator for turning `[RxSignal]`-annotated observables in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
+**R3-compatible source generator for turning ********`[Signal]`******** delegates in Godot C# into cached ********`Observable<T>`******** properties.**
 
-This package eliminates boilerplate when exposing Godot signals through R3 observables.  
-It generates real `[Signal]` Godot events, connects them to your observable streams, and automatically emits signals when your code pushes data.
+This package eliminates boilerplate when wiring up Godot's `[Signal]` system to R3's reactive observables. It generates cached, lazily-connected observables for every `[Signal]` delegate in your partial Godot classes.
 
 ---
 
 ## ✨ Features
 
-- Automatically detects `[RxSignal]`-annotated observable fields (e.g., `Subject<T>`) in Godot C# partial classes
-- Generates matching `[Signal]` Godot delegate declarations automatically
-- Generates a `ConnectGodotSignals()` method for wiring Observables to Godot signals
-- Supports 0 to 5 parameters in emitted signals
-- No runtime `Connect` needed for custom signals
-- Full R3 compatibility for reactive pipelines and disposal
-- Clean, manual control over when signals are fired via `.OnNext()`
-- Fully supports Godot Editor and visual signal connections
-- Supports `Subject<T>`, `ReplaySubject<T>`, `BehaviorSubject<T>`, `ReactiveProperty<T>`, and any other `Observable<T>`-derived types
-- Still includes dynamic `.Signal(...)` extension methods for wrapping built-in Godot signals (e.g., `Button.Pressed`, `Area2D.BodyEntered`)
-
----
-
-## 👍 Why This is Useful
-
-Before, exposing Godot signals in a reactive way required manual wiring, manual `Connect(...)` calls, and custom observable creation:
-
-### Old Way (Manual)
-
-```csharp
-[Signal]
-public delegate void PressedEventHandler(BaseButton button);
-
-private Observable<BaseButton> _onPressed;
-public Observable<BaseButton> OnPressed => _onPressed ??= Observable.Create<BaseButton>(observer => {
-    var callable = Callable.From((BaseButton button) => observer.OnNext(button));
-    Connect(nameof(Pressed), callable);
-    return Disposable.Empty;
-});
-```
-
-### New Way (With This Package)
-
-```csharp
-[RxSignal]
-private readonly Subject<BaseButton> _onButtonPressed = new();
-
-public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
-
-public override void _Ready()
-{
-    ConnectGodotSignals();
-}
-
-public void PressButton(BaseButton button)
-{
-    _onButtonPressed.OnNext(button);
-}
-```
-
-✅ Much less code.
-✅ No manual `Connect()` needed for custom signals.
-✅ Full control when you fire signals with `.OnNext()`.
-✅ Safer, reactive, and easier to test.
-✅ Dynamic wrapping still available for built-in signals if needed.
+- Automatically detects `[Signal]`-annotated delegate declarations in Godot C# scripts
+- Generates type-safe `Observable<T>` or `Observable<(T1, T2, ...)>` properties
+- Supports 0 to 5 parameters
+- Emits clean diagnostic warnings for `[Signal]` delegates with more than 5 parameters
+- Requires no manual wiring or `Observable.Create` logic
+- Complies with `.editorconfig` and follows your R3 usage patterns
+- Output is fully compatible with `AddTo(this)` disposal and R3 pipelines
 
 ---
 
@@ -75,118 +26,70 @@ public void PressButton(BaseButton button)
 dotnet add package LokiCat.Godot.R3.ObservableSignals
 ```
 
-2. Define your interfaces and classes:
-
-### Interface
+2. Ensure your Godot node classes are marked `partial`, and your `[Signal]` delegates are defined inside the class:
 
 ```csharp
-public partial interface IPauseMenu
-{
-    Observable<Unit> OnMainMenuSelected { get; }
+public partial class VisionCone2D : Node2D {
+  [Signal]
+  public delegate void BodyEnteredEventHandler(Node body);
 }
 ```
 
-### Class Implementation
+3. Build your project. The generator will automatically emit:
 
 ```csharp
-public partial class PauseMenu : Control, IPauseMenu
-{
-    [RxSignal]
-    private readonly Subject<Unit> _onMainMenuSelected = new();
-
-    public Observable<Unit> OnMainMenuSelected => _onMainMenuSelected;
-
-    public override void _Ready()
-    {
-        ConnectGodotSignals();
-    }
-
-    public void SelectMainMenu()
-    {
-        _onMainMenuSelected.OnNext(Unit.Default);
-    }
-}
+private Observable<Node> _onBodyEntered;
+public Observable<Node> OnBodyEntered =>
+  this.Signal(nameof(BodyEntered), ref _onBodyEntered);
 ```
 
-✅ That's it. No manual Connect, no manual EmitSignal needed for your own signals.
+You can now subscribe:
+
+```csharp
+visionCone.OnBodyEntered
+  .Subscribe(body => GD.Print($"Entered: {body.Name}"))
+  .AddTo(this);
+```
 
 ---
 
 ## ✅ Supported Signal Forms
 
-| Observable Type                     | Generated Signal and Emission |
-|:------------------------------------ |:-------------------------------|
-| `Observable<Unit>`                  | `EmitSignal("SignalName")`     |
-| `Observable<T>`                     | `EmitSignal("SignalName", T)`  |
-| `Observable<(T1, T2)>`              | `EmitSignal("SignalName", T1, T2)` |
-| ... up to 5 arguments               | `EmitSignal("SignalName", T1, T2, ..., T5)` |
+| Signal form                          | Generated Observable type       |
+| ------------------------------------ | ------------------------------- |
+| `delegate void Something()`          | `Observable<Unit>`              |
+| `delegate void Something(Node)`      | `Observable<Node>`              |
+| `delegate void Something(Node, int)` | `Observable<(Node, int)>`       |
+| ... up to 5 args                     | `Observable<(T1, T2, ..., T5)>` |
 
-> Signals with more than 5 parameters are not supported and will trigger a generator warning.
-
-### Supported Field Types
-
-You can annotate fields of type:
-- `Subject<T>`
-- `ReplaySubject<T>`
-- `BehaviorSubject<T>`
-- `ReactiveProperty<T>`
-- Any custom type inheriting `Observable<T>` that supports emitting values
-
----
-
-## 🛠 Using Both Systems Together
-
-- Use `[RxSignal]` and `ConnectGodotSignals()` for **your own custom signals**.
-- Use `.Signal(this Node node, string signalName, ref cache)` extension methods for **wrapping built-in Godot signals** you cannot modify (e.g., `Button.Pressed`, `Area2D.BodyEntered`).
-
-✅ Both systems can coexist cleanly.
-✅ No conflicts.
+> Signals with **6+ arguments** will trigger a diagnostic warning and be skipped.
 
 ---
 
 ## 🧠 How It Works
 
-- You define `[RxSignal]` observable fields (`Subject<T>`, `ReplaySubject<T>`, etc.)
-- You expose public `Observable<T>` properties
-- The generator emits:
-  - A `[Signal]` Godot delegate for each signal
-  - A `ConnectGodotSignals()` method that wires the Observables to `EmitSignal` calls
-- When you call `.OnNext()`, it automatically fires the Godot signal and notifies any R3 subscribers.
+- The generator looks for `[Signal]` delegate declarations inside partial classes.
+- For each signal, it emits a `private Observable<T>?` field and a `public Observable<T>` property.
+- It uses the `Signal(...)` extension method (also emitted by the generator) to wrap `Godot.Connect(...)` with `Observable.Create(...)`.
+- The generated observables are cached and lazily initialized on first access.
 
 ---
 
 ## 🛠 Example: Full Class
 
 ```csharp
-public partial class ButtonGroup : Control
-{
-    [RxSignal]
-    private readonly Subject<BaseButton> _onButtonPressed = new();
-
-    public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
-
-    public override void _Ready()
-    {
-        ConnectGodotSignals();
-    }
-
-    public void PressButton(BaseButton button)
-    {
-        _onButtonPressed.OnNext(button);
-    }
+public partial class ButtonGroup : Node {
+  [Signal]
+  public delegate void PressedEventHandler(BaseButton button);
 }
 ```
 
-⬇️ The generator automatically emits:
+⬇️ Generates:
 
 ```csharp
-[Signal]
-public delegate void ButtonPressedEventHandler();
-
-private void ConnectGodotSignals()
-{
-    OnButtonPressed.Subscribe(button => EmitSignal(nameof(ButtonPressed), button)).AddTo(this);
-}
+private Observable<BaseButton> _onPressed;
+public Observable<BaseButton> OnPressed =>
+  this.Signal(nameof(Pressed), ref _onPressed);
 ```
 
 ---
@@ -194,10 +97,10 @@ private void ConnectGodotSignals()
 ## 🧪 Troubleshooting
 
 - Make sure your classes are marked `partial`
-- Annotate observable fields with `[RxSignal]`
-- Expose observables with public `Observable<T>` properties
-- Call `ConnectGodotSignals()` in `_Ready()`
-- Use `#nullable enable` if you are using nullable types in your fields or properties
+- Your `[Signal]` delegates **must be declared inside** the class
+- Check `.g.cs` output in `obj/Debug/.../generated/`
+- Use `#nullable enable` if you use nullable types in your `[Signal]` delegate
+- You must rebuild your project to trigger generation
 
 ---
 
@@ -209,5 +112,5 @@ MIT License
 
 ## 💡 Bonus Tip
 
-Pair this generator with Chickensoft, R3, Godot, and other LokiCat Godot/.NET packages to create fully reactive, signal-driven gameplay systems that are easy to extend, test, and maintain.
+Pair this generator with Chickensoft, R3, Godot, and other LokiCat Godot/.NET packages for fully reactive, event-driven game logic in idiomatic C#.
 

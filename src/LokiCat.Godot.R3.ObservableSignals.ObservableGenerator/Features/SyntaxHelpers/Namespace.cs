@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.SyntaxHelpers;
+namespace LokiCat.GodotNodeInterfaces.Observables.ObservableGenerator.Features.SyntaxHelpers;
 
 public static class Namespace
 {

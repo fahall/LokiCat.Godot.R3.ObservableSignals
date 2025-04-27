@@ -13,10 +13,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\\LokiCat.Godot.R3.ObservableSignals\\LokiCat.Godot.R3.ObservableSignals.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
     </ItemGroup>

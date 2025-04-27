@@ -13,7 +13,7 @@
 
     <ItemGroup>
         <!-- Reference the generator project as an analyzer -->
-        <ProjectReference Include="..\\LokiCat.Godot.R3.ObservableSignals.Generator\\LokiCat.Godot.R3.ObservableSignals.Generator.csproj"
+        <ProjectReference Include="..\\LokiCat.Godot.R3.ObservableSignals.ObservableGenerator\\LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false" />
     </ItemGroup>

@@ -39,7 +39,7 @@ jobs:
       - name: Build runtime and generator
         run: |
           dotnet build src/LokiCat.Godot.R3.ObservableSignals/LokiCat.Godot.R3.ObservableSignals.csproj --configuration Release
-          dotnet build src/LokiCat.Godot.R3.ObservableSignals.Generator/LokiCat.Godot.R3.ObservableSignals.Generator.csproj --configuration Release
+          dotnet build src/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj --configuration Release
 
 
       - name: Pack runtime project

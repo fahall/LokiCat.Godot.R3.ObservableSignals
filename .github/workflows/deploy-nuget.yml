@@ -36,15 +36,11 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
 
-      - name: Build runtime and generator
-        run: |
-          dotnet build src/LokiCat.Godot.R3.ObservableSignals/LokiCat.Godot.R3.ObservableSignals.csproj --configuration Release
-          dotnet build src/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj --configuration Release
+      - name: Build project
+        run: dotnet build src/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj --configuration Release -p:Deterministic=true -p:ContinuousIntegrationBuild=true -p:PathMap=`pwd`=.
 
-
-      - name: Pack runtime project
-        run: dotnet pack src/LokiCat.Godot.R3.ObservableSignals/LokiCat.Godot.R3.ObservableSignals.csproj --no-build --configuration Release --output "$NuGetDirectory" /p:Version=${{ inputs.version }}
-
+      - name: Pack project
+        run: dotnet pack src/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator/LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj --no-build --configuration Release --output "$NuGetDirectory" /p:Version=${{ inputs.version }}
 
       - name: Upload NuGet package
         uses: actions/upload-artifact@v4

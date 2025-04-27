@@ -40,6 +40,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="../LokiCat.Godot.R3.ObservableSignals/LokiCat.Godot.R3.ObservableSignals.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup>
         <!-- These ensure the analyzer ends up in the correct NuGet folder -->
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
         <None Include="$(OutputPath)\$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Condition="Exists('$(OutputPath)\$(AssemblyName).pdb')" />

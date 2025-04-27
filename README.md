@@ -17,6 +17,7 @@ It generates real `[Signal]` Godot events, connects them to your observable stre
 - Full R3 compatibility for reactive pipelines and disposal
 - Clean, manual control over when signals are fired via `.OnNext()`
 - Fully supports Godot Editor and visual signal connections
+- Supports `Subject<T>`, `ReplaySubject<T>`, `BehaviorSubject<T>`, `ReactiveProperty<T>`, and any other `Observable<T>`-derived types
 
 ---
 
@@ -119,6 +120,15 @@ public partial class PauseMenu : Control, IPauseMenu
 | ... up to 5 arguments               | `EmitSignal("SignalName", T1, T2, ..., T5)` |
 
 > Signals with more than 5 parameters are not supported and will trigger a generator warning.
+
+### Supported Field Types
+
+You can annotate fields of type:
+- `Subject<T>`
+- `ReplaySubject<T>`
+- `BehaviorSubject<T>`
+- `ReactiveProperty<T>`
+- Any custom type inheriting `Observable<T>` that supports emitting values
 
 ---
 

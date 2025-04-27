@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net7.0</TargetFramework>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <AssemblyName>LokiCat.Godot.R3.ObservableSignals</AssemblyName>
+        <PackageId>LokiCat.Godot.R3.ObservableSignals</PackageId>
+        <Authors>Alex Hall</Authors>
+        <Description>Runtime types for LokiCat Godot R3 Observable Signals.</Description>
+        <PackageTags>godot r3 roslyn rx observable</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    </PropertyGroup>
+</Project>

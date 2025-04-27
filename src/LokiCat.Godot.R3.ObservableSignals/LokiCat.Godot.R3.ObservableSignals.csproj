@@ -8,5 +8,13 @@
         <Description>Runtime types for LokiCat Godot R3 Observable Signals.</Description>
         <PackageTags>godot r3 roslyn rx observable</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Reference the generator project as an analyzer -->
+        <ProjectReference Include="..\\LokiCat.Godot.R3.ObservableSignals.Generator\\LokiCat.Godot.R3.ObservableSignals.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
 </Project>

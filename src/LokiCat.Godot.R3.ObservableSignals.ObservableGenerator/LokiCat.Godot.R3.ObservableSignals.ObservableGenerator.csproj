@@ -4,61 +4,21 @@
         <TargetFramework>net7.0</TargetFramework>
         <LangVersion>latest</LangVersion>
 
-        <!-- Ensure this is an analyzer, not a runtime library -->
         <IsRoslynComponent>true</IsRoslynComponent>
         <IncludeBuildOutput>false</IncludeBuildOutput>
-
-        <!-- Enable proper packaging -->
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <OutputPath>bin\Release\</OutputPath>
-
-        <!-- Package Metadata -->
-        <PackageId>LokiCat.Godot.R3.ObservableSignals</PackageId>
-        <Version>1.0.0</Version>
-        <Authors>Alex Hall</Authors>
-        <Description>Generates Well named R3 Observables for Godot [Signal]</Description>
-        <PackageTags>godot r3 roslyn rx observable</PackageTags>
-        <PackageProjectUrl>https://github.com/fahall/LokiCat.Godot.R3.ObservableSignals</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/fahall/LokiCat.Godot.R3.ObservableSignals.git</RepositoryUrl>
-        <RepositoryType>git</RepositoryType>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageIcon>icon.png</PackageIcon>
-        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <AssemblyName>LokiCat.Godot.R3.ObservableSignals.ObservableGenerator</AssemblyName>
         <EmbedAllSources>true</EmbedAllSources>
-        <DisableWorkloadAutoImport>true</DisableWorkloadAutoImport>
         <SourceLinkCreate>true</SourceLinkCreate>
-        <AssemblyTitle>LokiCat.Godot.R3.ObservableSignals.ObservableGenerator</AssemblyTitle>
-        <Description>Generates AsObservable extensions for GodotNodeInterfaces</Description>
-        <Company>LokiCat</Company>
-        <Product>LokiCat.Godot.R3.ObservableSignals.ObservableGenerator</Product>
-        <DebugSymbols>true</DebugSymbols>
-        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-        <IsRoslynComponent>true</IsRoslynComponent>
         <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="../LokiCat.Godot.R3.ObservableSignals/LokiCat.Godot.R3.ObservableSignals.csproj" />
-    </ItemGroup>
-    
-    <ItemGroup>
-        <!-- These ensure the analyzer ends up in the correct NuGet folder -->
-        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-        <None Include="$(OutputPath)\$(AssemblyName).pdb" Pack="true" PackagePath="analyzers/dotnet/cs" Condition="Exists('$(OutputPath)\$(AssemblyName).pdb')" />
-        <None Include="$(OutputPath)\$(AssemblyName).xml" Pack="true" PackagePath="analyzers/dotnet/cs" Condition="Exists('$(OutputPath)\$(AssemblyName).xml')" />
-        <None Include="../icon.png" Pack="true" PackagePath="/" />
-        <None Include="../../README.md" Pack="true" PackagePath="" />
+        <ProjectReference Include="..\\LokiCat.Godot.R3.ObservableSignals\\LokiCat.Godot.R3.ObservableSignals.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
         <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Properties\" />
     </ItemGroup>
 
 </Project>

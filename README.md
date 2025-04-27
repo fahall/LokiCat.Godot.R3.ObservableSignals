@@ -13,11 +13,12 @@ It generates real `[Signal]` Godot events, connects them to your observable stre
 - Generates matching `[Signal]` Godot delegate declarations automatically
 - Generates a `ConnectGodotSignals()` method for wiring Observables to Godot signals
 - Supports 0 to 5 parameters in emitted signals
-- No runtime `Connect` needed
+- No runtime `Connect` needed for custom signals
 - Full R3 compatibility for reactive pipelines and disposal
 - Clean, manual control over when signals are fired via `.OnNext()`
 - Fully supports Godot Editor and visual signal connections
 - Supports `Subject<T>`, `ReplaySubject<T>`, `BehaviorSubject<T>`, `ReactiveProperty<T>`, and any other `Observable<T>`-derived types
+- Still includes dynamic `.Signal(...)` extension methods for wrapping built-in Godot signals (e.g., `Button.Pressed`, `Area2D.BodyEntered`)
 
 ---
 
@@ -59,9 +60,10 @@ public void PressButton(BaseButton button)
 ```
 
 ✅ Much less code.
-✅ No manual `Connect()` needed.
+✅ No manual `Connect()` needed for custom signals.
 ✅ Full control when you fire signals with `.OnNext()`.
 ✅ Safer, reactive, and easier to test.
+✅ Dynamic wrapping still available for built-in signals if needed.
 
 ---
 
@@ -106,7 +108,7 @@ public partial class PauseMenu : Control, IPauseMenu
 }
 ```
 
-✅ That's it. No manual Connect, no manual EmitSignal needed.
+✅ That's it. No manual Connect, no manual EmitSignal needed for your own signals.
 
 ---
 
@@ -129,6 +131,16 @@ You can annotate fields of type:
 - `BehaviorSubject<T>`
 - `ReactiveProperty<T>`
 - Any custom type inheriting `Observable<T>` that supports emitting values
+
+---
+
+## 🛠 Using Both Systems Together
+
+- Use `[RxSignal]` and `ConnectGodotSignals()` for **your own custom signals**.
+- Use `.Signal(this Node node, string signalName, ref cache)` extension methods for **wrapping built-in Godot signals** you cannot modify (e.g., `Button.Pressed`, `Area2D.BodyEntered`).
+
+✅ Both systems can coexist cleanly.
+✅ No conflicts.
 
 ---
 

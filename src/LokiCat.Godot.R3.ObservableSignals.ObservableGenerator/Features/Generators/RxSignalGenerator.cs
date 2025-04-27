@@ -15,9 +15,9 @@ public sealed class RxSignalGenerator : ISourceGenerator
 
     public void Execute(GeneratorExecutionContext context)
     {
+        AddAttributeClass(context);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {
-            AddAttributeClass(context);
             var root = tree.GetRoot();
 
             var classDeclarations = root.DescendantNodes().OfType<ClassDeclarationSyntax>();

@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using LokiCat.GodotNodeInterfaces.Observables.ObservableGenerator.Features.SyntaxHelpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 

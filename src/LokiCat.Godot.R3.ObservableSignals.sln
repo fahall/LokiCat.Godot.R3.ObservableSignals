@@ -2,8 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LokiCat.Godot.R3.ObservableSignals.ObservableGenerator", "LokiCat.Godot.R3.ObservableSignals.ObservableGenerator\LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.csproj", "{83D2EA95-5512-4881-9042-033C0658A55B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ObservableSignalAttributes", "ObservableSignalAttributes\ObservableSignalAttributes.csproj", "{868E06D5-0B36-4861-B433-3E1EF15F33FE}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LokiCat.Godot.R3.ObservableSignals", "LokiCat.Godot.R3.ObservableSignals\LokiCat.Godot.R3.ObservableSignals.csproj", "{E8756F04-CF9E-4229-B788-C908E227601E}"
 EndProject
 Global

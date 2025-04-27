@@ -1,6 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 
-namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Generators;
+namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Generators;
 
 public static class SignalObservableExtensionGenerator
 {

@@ -6,7 +6,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Generators;
+namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Generators;
 
 [Generator]
 public sealed class RxSignalGenerator : ISourceGenerator

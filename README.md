@@ -1,6 +1,6 @@
 ﻿# LokiCat.Godot.R3.ObservableSignals
 
-**R3-compatible source generator for turning `[Signal]`-annotated observables in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
+**R3-compatible source generator for turning `[RxSignal]`-annotated observables in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
 
 This package eliminates boilerplate when exposing Godot signals through R3 observables.  
 It generates real `[Signal]` Godot events, connects them to your observable streams, and automatically emits signals when your code pushes data.
@@ -9,7 +9,7 @@ It generates real `[Signal]` Godot events, connects them to your observable stre
 
 ## ✨ Features
 
-- Automatically detects `[Signal]`-annotated observable fields (e.g., `Subject<T>`) in Godot C# partial classes
+- Automatically detects `[RxSignal]`-annotated observable fields (e.g., `Subject<T>`) in Godot C# partial classes
 - Generates matching `[Signal]` Godot delegate declarations automatically
 - Generates a `ConnectGodotSignals()` method for wiring Observables to Godot signals
 - Supports 0 to 5 parameters in emitted signals
@@ -41,7 +41,7 @@ public Observable<BaseButton> OnPressed => _onPressed ??= Observable.Create<Base
 ### New Way (With This Package)
 
 ```csharp
-[Signal]
+[RxSignal]
 private readonly Subject<BaseButton> _onButtonPressed = new();
 
 public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
@@ -88,7 +88,7 @@ public partial interface IPauseMenu
 ```csharp
 public partial class PauseMenu : Control, IPauseMenu
 {
-    [Signal]
+    [RxSignal]
     private readonly Subject<Unit> _onMainMenuSelected = new();
 
     public Observable<Unit> OnMainMenuSelected => _onMainMenuSelected;
@@ -124,11 +124,11 @@ public partial class PauseMenu : Control, IPauseMenu
 
 ## 🧠 How It Works
 
-- You define `[Signal]` observable fields (`Subject<T>`, `ReplaySubject<T>`, etc.)
+- You define `[RxSignal]` observable fields (`Subject<T>`, `ReplaySubject<T>`, etc.)
 - You expose public `Observable<T>` properties
 - The generator emits:
-    - A `[Signal]` Godot delegate for each signal
-    - A `ConnectGodotSignals()` method that wires the Observables to `EmitSignal` calls
+  - A `[Signal]` Godot delegate for each signal
+  - A `ConnectGodotSignals()` method that wires the Observables to `EmitSignal` calls
 - When you call `.OnNext()`, it automatically fires the Godot signal and notifies any R3 subscribers.
 
 ---
@@ -138,7 +138,7 @@ public partial class PauseMenu : Control, IPauseMenu
 ```csharp
 public partial class ButtonGroup : Control
 {
-    [Signal]
+    [RxSignal]
     private readonly Subject<BaseButton> _onButtonPressed = new();
 
     public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
@@ -172,7 +172,7 @@ private void ConnectGodotSignals()
 ## 🧪 Troubleshooting
 
 - Make sure your classes are marked `partial`
-- Annotate observable fields with `[Signal]`
+- Annotate observable fields with `[RxSignal]`
 - Expose observables with public `Observable<T>` properties
 - Call `ConnectGodotSignals()` in `_Ready()`
 - Use `#nullable enable` if you are using nullable types in your fields or properties

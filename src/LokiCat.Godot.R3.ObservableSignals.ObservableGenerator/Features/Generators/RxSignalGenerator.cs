@@ -24,6 +24,9 @@ public sealed class RxSignalGenerator : ISourceGenerator
             DiagnosticSeverity.Info,
             isEnabledByDefault: true
         );
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, Location.None)); // ✅ ACTUALLY REPORT IT!
+
+        
         AddAttributeClass(context);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {

@@ -1,114 +1,76 @@
 ﻿# LokiCat.Godot.R3.ObservableSignals
 
-**R3-compatible source generator for turning `[RxSignal]`-annotated observables in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
+**R3-compatible source generator for turning `[RxSignal]`-annotated observables and `[Signal]`-annotated delegates in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
 
 This package eliminates boilerplate when exposing Godot signals through R3 observables.  
-It generates real `[Signal]` Godot events, connects them to your observable streams, and automatically emits signals when your code pushes data.
+It provides two distinct but complementary features:
+- **[RxSignal]** — Turn your private observable fields into real Godot signals and clean public properties.
+- **[Signal]** — Automatically wrap built-in and custom Godot signals into Observables.
+
+> 📢 **Important:**
+> - `[RxSignal]`: `_onJump` ➔ `OnJump` observable ➔ emits `Jump` Godot signal.
+> - `[Signal]`: `JumpEventHandler` delegate ➔ `Jump` Godot signal ➔ exposes `OnJump` observable.
+
+| Attribute | Field | Godot Signal | Observable |
+|:---|:---|:---|:---|
+| `[RxSignal]` | `_onJump` | `Jump` | `OnJump` |
+| `[Signal]` | `JumpEventHandler` | `Jump` | `OnJump` |
+
+---
+
+## 🚀 Quick Start
+
+### To expose a custom signal:
+
+```csharp
+[RxSignal]
+private Subject<Unit> _onJump = new();
+
+// Access OnJump and subscribe
+OnJump.Subscribe(_ => GD.Print("Jumped!"));
+
+// Fire the signal manually
+_onJump.OnNext(Unit.Default);
+```
+
+✅ The Godot editor shows a `Jump` signal, auto-wired.
+
+### To wrap a built-in or manual signal:
+
+```csharp
+[Signal]
+public delegate void JumpEventHandler();
+
+// Automatically exposes OnJump observable
+OnJump.Subscribe(_ => GD.Print("Built-in Jumped!"));
+```
+
+✅ The `Jump` Godot signal emits and is observed reactively.
 
 ---
 
 ## ✨ Features
 
-- Automatically detects `[RxSignal]`-annotated observable fields (e.g., `Subject<T>`) in Godot C# partial classes
-- Generates matching `[Signal]` Godot delegate declarations automatically
-- Generates a `ConnectGodotSignals()` method for wiring Observables to Godot signals
-- Supports 0 to 5 parameters in emitted signals
-- No runtime `Connect` needed for custom signals
-- Full R3 compatibility for reactive pipelines and disposal
-- Clean, manual control over when signals are fired via `.OnNext()`
-- Fully supports Godot Editor and visual signal connections
-- Supports `Subject<T>`, `ReplaySubject<T>`, `BehaviorSubject<T>`, `ReactiveProperty<T>`, and any other `Observable<T>`-derived types
-- Still includes dynamic `.Signal(...)` extension methods for wrapping built-in Godot signals (e.g., `Button.Pressed`, `Area2D.BodyEntered`)
+- **[RxSignal]**
+  - Detects `[RxSignal]`-annotated observable fields.
+  - Generates matching `[Signal]` Godot delegates (like `JumpEventHandler`).
+  - Exposes a lazily connected public `Observable<T>` property (`OnJump`).
 
----
+- **[Signal]**
+  - Detects `[Signal]`-annotated delegates.
+  - Wraps Godot signals as reactive `Observable<T>` properties (`OnJump`).
 
-## 👍 Why This is Useful
-
-Before, exposing Godot signals in a reactive way required manual wiring, manual `Connect(...)` calls, and custom observable creation:
-
-### Old Way (Manual)
-
-```csharp
-[Signal]
-public delegate void PressedEventHandler(BaseButton button);
-
-private Observable<BaseButton> _onPressed;
-public Observable<BaseButton> OnPressed => _onPressed ??= Observable.Create<BaseButton>(observer => {
-    var callable = Callable.From((BaseButton button) => observer.OnNext(button));
-    Connect(nameof(Pressed), callable);
-    return Disposable.Empty;
-});
-```
-
-### New Way (With This Package)
-
-```csharp
-[RxSignal]
-private readonly Subject<BaseButton> _onButtonPressed = new();
-
-public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
-
-public override void _Ready()
-{
-    ConnectGodotSignals();
-}
-
-public void PressButton(BaseButton button)
-{
-    _onButtonPressed.OnNext(button);
-}
-```
-
-✅ Much less code.
-✅ No manual `Connect()` needed for custom signals.
-✅ Full control when you fire signals with `.OnNext()`.
-✅ Safer, reactive, and easier to test.
-✅ Dynamic wrapping still available for built-in signals if needed.
+- Full R3 compatibility.
+- Full Godot Editor and visual signal connection support.
+- Fast incremental source generation.
 
 ---
 
 ## 📦 Installation
 
-1. Add this NuGet package to your project:
-
 ```sh
 dotnet add package LokiCat.Godot.R3.ObservableSignals
 ```
-
-2. Define your interfaces and classes:
-
-### Interface
-
-```csharp
-public partial interface IPauseMenu
-{
-    Observable<Unit> OnMainMenuSelected { get; }
-}
-```
-
-### Class Implementation
-
-```csharp
-public partial class PauseMenu : Control, IPauseMenu
-{
-    [RxSignal]
-    private readonly Subject<Unit> _onMainMenuSelected = new();
-
-    public Observable<Unit> OnMainMenuSelected => _onMainMenuSelected;
-
-    public override void _Ready()
-    {
-        ConnectGodotSignals();
-    }
-
-    public void SelectMainMenu()
-    {
-        _onMainMenuSelected.OnNext(Unit.Default);
-    }
-}
-```
-
-✅ That's it. No manual Connect, no manual EmitSignal needed for your own signals.
 
 ---
 
@@ -123,91 +85,31 @@ public partial class PauseMenu : Control, IPauseMenu
 
 > Signals with more than 5 parameters are not supported and will trigger a generator warning.
 
-### Supported Field Types
+---
 
-You can annotate fields of type:
-- `Subject<T>`
-- `ReplaySubject<T>`
-- `BehaviorSubject<T>`
-- `ReactiveProperty<T>`
-- Any custom type inheriting `Observable<T>` that supports emitting values
+## ⚡ Best Practices
+
+- Use `[RxSignal]` for custom gameplay-driven events you control.
+- Use `[Signal]` for observing existing Godot signals.
+- Always prefix `[RxSignal]` fields with `_on`.
+- Compose filtered observables manually (`.Where`, `.Throttle`, etc.).
 
 ---
 
-## 🛠 Using Both Systems Together
+## 🚨 Warnings
 
-- Use `[RxSignal]` and `ConnectGodotSignals()` for **your own custom signals**.
-- Use `.Signal(this Node node, string signalName, ref cache)` extension methods for **wrapping built-in Godot signals** you cannot modify (e.g., `Button.Pressed`, `Area2D.BodyEntered`).
-
-✅ Both systems can coexist cleanly.
-✅ No conflicts.
+- `[RxSignal]` fields must be `Observable<T>` — otherwise, warning `RXSG0002`.
+- `[Signal]` delegates over 5 parameters trigger warning `SIGOBS001`.
+- Signal names are sanitized to valid C# identifiers.
 
 ---
 
-## 🧠 How It Works
+# 📜 License
 
-- You define `[RxSignal]` observable fields (`Subject<T>`, `ReplaySubject<T>`, etc.)
-- You expose public `Observable<T>` properties
-- The generator emits:
-  - A `[Signal]` Godot delegate for each signal
-  - A `ConnectGodotSignals()` method that wires the Observables to `EmitSignal` calls
-- When you call `.OnNext()`, it automatically fires the Godot signal and notifies any R3 subscribers.
+MIT License.
 
 ---
 
-## 🛠 Example: Full Class
+# 💡 Bonus Tip
 
-```csharp
-public partial class ButtonGroup : Control
-{
-    [RxSignal]
-    private readonly Subject<BaseButton> _onButtonPressed = new();
-
-    public Observable<BaseButton> OnButtonPressed => _onButtonPressed;
-
-    public override void _Ready()
-    {
-        ConnectGodotSignals();
-    }
-
-    public void PressButton(BaseButton button)
-    {
-        _onButtonPressed.OnNext(button);
-    }
-}
-```
-
-⬇️ The generator automatically emits:
-
-```csharp
-[Signal]
-public delegate void ButtonPressedEventHandler();
-
-private void ConnectGodotSignals()
-{
-    OnButtonPressed.Subscribe(button => EmitSignal(nameof(ButtonPressed), button)).AddTo(this);
-}
-```
-
----
-
-## 🧪 Troubleshooting
-
-- Make sure your classes are marked `partial`
-- Annotate observable fields with `[RxSignal]`
-- Expose observables with public `Observable<T>` properties
-- Call `ConnectGodotSignals()` in `_Ready()`
-- Use `#nullable enable` if you are using nullable types in your fields or properties
-
----
-
-## 📄 License
-
-MIT License
-
----
-
-## 💡 Bonus Tip
-
-Pair this generator with Chickensoft, R3, Godot, and other LokiCat Godot/.NET packages to create fully reactive, signal-driven gameplay systems that are easy to extend, test, and maintain.
-
+Pair this generator with Chickensoft, R3, Godot, and other LokiCat Godot/.NET packages to build fully reactive, signal-driven gameplay systems that are easy to extend, test, and maintain.

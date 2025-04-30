@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.SyntaxHelpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -14,12 +15,15 @@ public sealed class RxSignalGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var fields = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (s, _) => s is FieldDeclarationSyntax { AttributeLists.Count: > 0 },
-                transform: static (ctx, _) => (FieldDeclarationSyntax)ctx.Node
-            )
-            .Where(static f => f is not null);
-
+                            .CreateSyntaxProvider(
+                                predicate: static (s, _) =>
+                                    s is FieldDeclarationSyntax fieldDecl &&
+                                    fieldDecl.AttributeLists
+                                             .SelectMany(a => a.Attributes)
+                                             .Any(attr => attr.Name.ToString().Contains("RxSignal")),
+                                transform: static (ctx, _) => (FieldDeclarationSyntax)ctx.Node
+                            )
+                            .Where(static f => f is not null);
         var compilationAndFields = context.CompilationProvider.Combine(fields.Collect());
 
         context.RegisterSourceOutput(compilationAndFields, static (spc, source) =>
@@ -39,7 +43,7 @@ public sealed class RxSignalGenerator : IIncrementalGenerator
                 continue;
 
             var classDecl = group.Key;
-            var namespaceName = GetNamespace(classDecl);
+            var namespaceName = Namespace.GetNamespace(classDecl);
             var className = classDecl.Identifier.Text;
             var builder = new StringBuilder();
 
@@ -133,9 +137,6 @@ public partial class {{className}}
             }
         }
     }
-
-    private static string GetNamespace(ClassDeclarationSyntax classDecl) =>
-        classDecl.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault()?.Name.ToString() ?? "";
 
     private static bool IsObservableType(ITypeSymbol type)
     {

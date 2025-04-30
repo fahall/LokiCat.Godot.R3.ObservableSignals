@@ -1,3 +1,8 @@
 ﻿<wpf:ResourceDictionary xml:space="preserve" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:s="clr-namespace:System;assembly=mscorlib" xmlns:ss="urn:shemas-jetbrains-com:settings-storage-xaml" xmlns:wpf="http://schemas.microsoft.com/winfx/2006/xaml/presentation">
 	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=5c533d91_002D04d5_002D4cae_002Db199_002Dcd2e717acc75/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="GenerateOneParameterDelegatesWithConstructors" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+&lt;/SessionState&gt;</s:String>
+	<s:String x:Key="/Default/Environment/UnitTesting/UnitTestSessionStore/Sessions/=7a59b706_002D862b_002D41fb_002Dbc13_002D184702a6cee3/@EntryIndexedValue">&lt;SessionState ContinuousTestingMode="0" IsActive="True" Name="RxSignalGeneratorShould" xmlns="urn:schemas-jetbrains-com:jetbrains-ut-session"&gt;&#xD;
+  &lt;TestAncestor&gt;&#xD;
+    &lt;TestId&gt;xUnit::E3E23E05-E849-4A6F-A23B-A8C80ED920F6::net8.0::LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Tests.RxSignalGeneratorShould&lt;/TestId&gt;&#xD;
+  &lt;/TestAncestor&gt;&#xD;
 &lt;/SessionState&gt;</s:String></wpf:ResourceDictionary>

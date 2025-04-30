@@ -93,7 +93,7 @@ public partial class {{className}}
             var hasRxSignal = fieldSymbol.GetAttributes()
                                          .Any(attr => attr.AttributeClass?.ToDisplayString() == "LokiCat.Godot.R3.ObservableSignals.RxSignalAttribute");
 
-            context.AddSource($
+            context.AddSource($"Debug_HasRxSignal_{fieldSymbol.Name}.g.cs", $"// has RxSignal: {hasRxSignal}");
 
             if (!hasRxSignal)
                 continue;

@@ -82,8 +82,18 @@ public partial class {{className}}
             if (fieldSymbol == null)
                 continue;
 
+            // 🔍 Add this block to log type info and observable compatibility
+            context.AddSource($"Debug_FieldSymbol_{fieldSymbol.Name}.g.cs", $$"""
+                                                                              // field name: {{fieldSymbol.Name}}
+                                                                              // type: {{fieldSymbol.Type.ToDisplayString()}}
+                                                                              // observable? {{IsObservableType(fieldSymbol.Type)}}
+                                                                              """);
+
+            // 🔍 Add this block to verify the RxSignalAttribute is detected
             var hasRxSignal = fieldSymbol.GetAttributes()
-                .Any(attr => attr.AttributeClass?.ToDisplayString() == "LokiCat.Godot.R3.ObservableSignals.RxSignalAttribute");
+                                         .Any(attr => attr.AttributeClass?.ToDisplayString() == "LokiCat.Godot.R3.ObservableSignals.RxSignalAttribute");
+
+            context.AddSource($
 
             if (!hasRxSignal)
                 continue;

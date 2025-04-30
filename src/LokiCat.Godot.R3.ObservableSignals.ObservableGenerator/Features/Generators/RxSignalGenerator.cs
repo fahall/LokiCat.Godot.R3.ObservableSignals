@@ -37,6 +37,9 @@ public sealed class RxSignalGenerator : IIncrementalGenerator
     {
         AddRxSignalAttributeSource(context);
         
+        var rxSignalAttrSymbol = compilation.GetTypeByMetadataName("LokiCat.Godot.R3.ObservableSignals.RxSignalAttribute");
+        if (rxSignalAttrSymbol is null) return;
+
         var modelCache = new Dictionary<SyntaxTree, SemanticModel>();
 
         foreach (var group in fields.GroupBy(f => f.FirstAncestorOrSelf<ClassDeclarationSyntax>()))
@@ -73,10 +76,10 @@ public partial class {{className}}
                 if (fieldSymbol == null)
                     continue;
 
-                var rxSignalAttr = fieldSymbol.GetAttributes()
-                    .FirstOrDefault(attr => attr.AttributeClass?.Name == "RxSignalAttribute");
+                var hasRxSignal = fieldSymbol.GetAttributes()
+                                             .Any(attr => SymbolEqualityComparer.Default.Equals(attr.AttributeClass, rxSignalAttrSymbol));
 
-                if (rxSignalAttr is null)
+                if (!hasRxSignal)
                     continue;
 
                 var fieldType = fieldSymbol.Type;

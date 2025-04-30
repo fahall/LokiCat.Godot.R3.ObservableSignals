@@ -19,8 +19,8 @@ public sealed class RxSignalGenerator : IIncrementalGenerator
                 predicate: static (s, _) =>
                     s is FieldDeclarationSyntax fieldDecl &&
                     fieldDecl.AttributeLists
-                        .SelectMany(a => a.Attributes)
-                        .Any(attr => attr.Name.ToString().Contains("RxSignal")),
+                             .SelectMany(a => a.Attributes)
+                             .Any(attr => attr.Name.ToString().EndsWith("RxSignal")),
                 transform: static (ctx, _) => (FieldDeclarationSyntax)ctx.Node
             )
             .Where(static f => f is not null);
@@ -40,6 +40,13 @@ private static void Execute(Compilation compilation, IReadOnlyList<FieldDeclarat
 
     var modelCache = new Dictionary<SyntaxTree, SemanticModel>();
 
+    foreach (var field in fields)
+    {
+        var location = field.GetLocation().GetLineSpan();
+        context.AddSource($"FieldSeen_{location.Path.GetHashCode()}_{location.StartLinePosition.Line}.g.cs",
+                          $"// Found RxSignal field at {location.Path}:{location.StartLinePosition.Line}");
+    }
+    
     foreach (var group in fields.GroupBy(f => f.FirstAncestorOrSelf<ClassDeclarationSyntax>()))
     {
         if (group.Key is null)

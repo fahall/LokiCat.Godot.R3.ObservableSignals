@@ -215,7 +215,7 @@ public class RxSignalGeneratorShould
         code.Should().Contain("Subscribe(value => EmitSignal(nameof(Named), value))");
         code.Should().Contain("EmitSignal(nameof(Named), value)");
     }
-    
+
     [Fact]
     public void WarnIfRxSignalFieldIsNotObservable()
     {
@@ -237,7 +237,8 @@ public class RxSignalGeneratorShould
                                 }
                                 """;
 
-        var trees = new[] {
+        var trees = new[]
+        {
             CSharpSyntaxTree.ParseText(input),
             CSharpSyntaxTree.ParseText(attrStub)
         };
@@ -251,12 +252,15 @@ public class RxSignalGeneratorShould
                                                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator).RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+        var driver = CSharpGeneratorDriver.Create(generator)
+                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
 
         diagnostics.Should().Contain(d => d.Id == "RXSG0002");
         diagnostics.Any(d => d.GetMessage().Contains("_badSignal"))
-                   .Should().BeTrue("the diagnostic message should mention the bad field name");    }
-    
+                   .Should()
+                   .BeTrue("the diagnostic message should mention the bad field name");
+    }
+
     [Fact]
     public void DoesNotGenerateCodeIfNoRxSignalFields()
     {
@@ -280,10 +284,170 @@ public class RxSignalGeneratorShould
                                                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator).RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+        var driver = CSharpGeneratorDriver.Create(generator)
+                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
         var result = driver.GetRunResult();
 
         result.Results.SelectMany(r => r.GeneratedSources)
-              .Should().OnlyContain(s => s.HintName == "RxSignalAttribute.g.cs");
+              .Should()
+              .OnlyContain(s => s.HintName == "RxSignalAttribute.g.cs");
+    }
+
+    [Fact]
+    public void GenerateCodeForClassImplementingInterfaceWithRxSignals()
+    {
+        const string input = """
+                             using Godot;
+                             using R3;
+                             using LokiCat.Godot.R3.ObservableSignals;
+
+                             public interface IPauseMenu {
+                                 Observable<Unit> OnMainMenuSelected { get; }
+                             }
+
+                             public partial class PauseMenu : Control, IPauseMenu {
+                                 [RxSignal] private Subject<Unit> _onMainMenuSelected = new();
+                             }
+                             """;
+
+        const string r3Stub = """
+                              namespace R3 {
+                                  public class Subject<T> : Observable<T> {
+                                      public void OnNext(T value) { }
+                                  }
+                                  public class Observable<T> { }
+                                  public struct Unit {}
+                              }
+                              """;
+
+        const string attributeStub = """
+                                     using System;
+                                     namespace LokiCat.Godot.R3.ObservableSignals {
+                                         [AttributeUsage(AttributeTargets.Field)]
+                                         public sealed class RxSignalAttribute : Attribute { }
+                                     }
+                                     """;
+
+        var syntaxTrees = new[]
+        {
+            CSharpSyntaxTree.ParseText(input),
+            CSharpSyntaxTree.ParseText(r3Stub),
+            CSharpSyntaxTree.ParseText(attributeStub)
+        };
+
+        var references = AppDomain.CurrentDomain
+                                  .GetAssemblies()
+                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
+                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+
+        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
+                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var generator = new RxSignalGenerator();
+        var driver = CSharpGeneratorDriver.Create(generator)
+                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+        var result = driver.GetRunResult();
+
+        var source = result.Results.SelectMany(r => r.GeneratedSources)
+                           .FirstOrDefault(s => s.HintName.Contains("PauseMenu"));
+        source.Should().NotBeNull("PauseMenu should have generated observable code");
+
+        var code = source!.SourceText.ToString();
+        code.Should().Contain("public delegate void MainMenuSelectedEventHandler();");
+        code.Should().Contain("public Observable<R3.Unit> OnMainMenuSelected");
+        code.Should().Contain("EmitSignal(nameof(MainMenuSelected))");
+    }
+
+    [Fact]
+    public void GenerateCodeForPauseMenuLikeClass()
+    {
+        const string input = """
+                             namespace Slinky.Pause.UI.Menu;
+
+                             using Godot;
+                             using R3;
+                             using LokiCat.Godot.R3.ObservableSignals;
+                             using Chickensoft.AutoInject;
+                             using Chickensoft.GodotNodeInterfaces;
+                             using Chickensoft.Introspection;
+
+                             public interface IPauseMenu : IControl {
+                                 Observable<Unit> OnMainMenuSelected { get; }
+                                 Observable<Unit> OnResumeSelected { get; }
+                                 Observable<Unit> OnSaveSelected { get; }
+                                 Observable<Unit> OnTransitionCompleted { get; }
+                             }
+
+                             [Meta(typeof(IAutoNode))]
+                             public partial class PauseMenu : Control, IPauseMenu {
+                                 [RxSignal] private Subject<Unit> _onResumeSelected = new();
+                                 [RxSignal] private Subject<Unit> _onSaveSelected = new();
+                                 [RxSignal] private Subject<Unit> _onTransitionCompleted = new();
+                                 [RxSignal] private Subject<Unit> _onMainMenuSelected = new();
+                             }
+                             """;
+
+        const string r3Stub = """
+                              namespace R3 {
+                                  public class Subject<T> : Observable<T> {
+                                      public void OnNext(T value) { }
+                                  }
+                                  public class Observable<T> { }
+                                  public struct Unit {}
+                              }
+                              """;
+
+        const string attributeStub = """
+                                     using System;
+                                     namespace LokiCat.Godot.R3.ObservableSignals {
+                                         [AttributeUsage(AttributeTargets.Field)]
+                                         public sealed class RxSignalAttribute : Attribute { }
+                                     }
+                                     """;
+
+        const string autoNodeStub = """
+                                    namespace Chickensoft.AutoInject {
+                                        using System;
+                                        public sealed class MetaAttribute : Attribute {
+                                            public MetaAttribute(Type t) {}
+                                        }
+                                    
+                                        public interface IAutoNode {}
+                                    }
+
+                                    namespace Chickensoft.GodotNodeInterfaces {
+                                        public interface IControl {}
+                                    }
+
+                                    namespace Chickensoft.Introspection {
+                                        // empty placeholder
+                                    }
+                                    """;
+
+        var syntaxTrees = new[]
+        {
+            CSharpSyntaxTree.ParseText(input),
+            CSharpSyntaxTree.ParseText(r3Stub),
+            CSharpSyntaxTree.ParseText(attributeStub),
+            CSharpSyntaxTree.ParseText(autoNodeStub),
+        };
+
+        var references = AppDomain.CurrentDomain
+                                  .GetAssemblies()
+                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
+                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+
+        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
+                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var generator = new RxSignalGenerator();
+        var driver = CSharpGeneratorDriver.Create(generator)
+                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
+        var result = driver.GetRunResult();
+
+        var sources = result.Results.SelectMany(r => r.GeneratedSources).ToList();
+        sources.Select(s => s.HintName)
+               .Should()
+               .Contain(h => h.Contains("PauseMenu"), "PauseMenu should result in generated code");
     }
 }

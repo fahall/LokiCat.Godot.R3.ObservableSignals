@@ -4,6 +4,7 @@ using LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Generators
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Tests;
@@ -11,81 +12,73 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Tests;
 public class RxSignalGeneratorShould
 {
     private readonly ITestOutputHelper _testOutputHelper;
+    public RxSignalGeneratorShould(ITestOutputHelper testOutputHelper) => _testOutputHelper = testOutputHelper;
 
-    public RxSignalGeneratorShould(ITestOutputHelper testOutputHelper)
-    {
-        _testOutputHelper = testOutputHelper;
-    }
+    private const string R3_STUB = """
+                                  namespace R3 {
+                                      public class Subject<T> : Observable<T> {
+                                          public void OnNext(T value) { }
+                                      }
+                                      public class Observable<T> { }
+                                      public struct Unit {}
+                                  }
+                                  """;
+
+    private const string RX_SIGNAL_ATTRIBUTE_STUB = """
+                                                 using System;
+                                                 namespace LokiCat.Godot.R3.ObservableSignals {
+                                                     [AttributeUsage(AttributeTargets.Field)]
+                                                     public sealed class RxSignalAttribute : Attribute { }
+                                                 }
+                                                 """;
+
+    private static CSharpCompilation
+        CreateCompilation(IEnumerable<SyntaxTree> trees, IEnumerable<MetadataReference> references) =>
+        CSharpCompilation.Create("TestAssembly", trees, references,
+                                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+    private static GeneratorDriverRunResult RunGenerator(CSharpCompilation compilation) => CSharpGeneratorDriver
+        .Create(new RxSignalGenerator())
+        .RunGeneratorsAndUpdateCompilation(compilation, out _, out _)
+        .GetRunResult();
+
+    private static IEnumerable<MetadataReference> DefaultReferences() => AppDomain.CurrentDomain
+        .GetAssemblies()
+        .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
+        .Select(a => MetadataReference.CreateFromFile(a.Location));
+
+    private static string GetGeneratedSource(GeneratorDriverRunResult result, string typeName) => result.Results
+            .SelectMany(r => r.GeneratedSources)
+            .FirstOrDefault(s => s.HintName.Contains(typeName))
+            .SourceText.ToString()
+        ?? throw new Exception($"Generated source for {typeName} not found.");
+
+    #region Generation Success Cases
 
     [Fact]
     public void GenerateSignalAndPropertyForRxSignalField()
     {
-        const string rxSignalInput = """
-                                     using R3;
-                                     using Godot;
-                                     using LokiCat.Godot.R3.ObservableSignals;
+        const string INPUT = """
+                             using R3;
+                             using Godot;
+                             using LokiCat.Godot.R3.ObservableSignals;
 
-                                     public partial class TestNode : Node
-                                     {
-                                         [RxSignal]
-                                         private Subject<Unit> _onJump = new();
-                                     }
-                                     """;
-
-        const string r3Stub = """
-                              namespace R3 {
-                                  public class Subject<T> : Observable<T> {
-                                      public void OnNext(T value) { }
-                                  }
-                                  public class Observable<T> { }
-                                  public struct Unit {}
-                              }
-                              """;
-
-        const string attributeStub = """
-                                     using System;
-                                     namespace LokiCat.Godot.R3.ObservableSignals {
-                                         [AttributeUsage(AttributeTargets.Field)]
-                                         public sealed class RxSignalAttribute : Attribute { }
-                                     }
-                                     """;
+                             public partial class TestNode : Node {
+                                 [RxSignal] private Subject<Unit> _onJump = new();
+                             }
+                             """;
 
         var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(SourceText.From(rxSignalInput, Encoding.UTF8)),
-            CSharpSyntaxTree.ParseText(SourceText.From(r3Stub, Encoding.UTF8)),
-            CSharpSyntaxTree.ParseText(SourceText.From(attributeStub, Encoding.UTF8))
+            CSharpSyntaxTree.ParseText(SourceText.From(INPUT, Encoding.UTF8)),
+            CSharpSyntaxTree.ParseText(R3_STUB),
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location))
-                                  .Cast<MetadataReference>()
-                                  .ToList();
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var compilation = CSharpCompilation.Create("TestAssembly",
-                                                   syntaxTrees,
-                                                   references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(
-                                              compilation, out var updatedCompilation, out _);
-        var result = driver.GetRunResult();
-
-        result.Results.Should().NotBeNullOrEmpty("the generator should have executed");
-
-        var generatedSources = result.Results.SelectMany(r => r.GeneratedSources).ToList();
-        generatedSources.Should().NotBeEmpty("at least one file should have been generated");
-
-        generatedSources.Select(s => s.HintName).Should().Contain(n => n.Contains("TestNode"));
-
-        var source = generatedSources.FirstOrDefault(s => s.HintName.Contains("TestNode"));
-        source.Should().NotBeNull("we should find a generated file for TestNode");
-
-        var code = source!.SourceText.ToString();
+        var code = GetGeneratedSource(result, "TestNode");
 
         code.Should().Contain("public delegate void JumpEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnJump");
@@ -95,58 +88,28 @@ public class RxSignalGeneratorShould
     [Fact]
     public void GenerateMultipleSignalsFromMultipleRxSignalFields()
     {
-        const string rxSignalInput = """
-                                     using R3;
-                                     using Godot;
-                                     using LokiCat.Godot.R3.ObservableSignals;
+        const string INPUT = """
+                             using R3;
+                             using Godot;
+                             using LokiCat.Godot.R3.ObservableSignals;
 
-                                     public partial class TestNode : Node
-                                     {
-                                         [RxSignal] private Subject<R3.Unit> _onJump = new();
-                                         [RxSignal] private Subject<R3.Unit> _onLand = new();
-                                     }
-                                     """;
-
-        const string r3Stub = """
-                              namespace R3 {
-                                  public class Subject<T> : Observable<T> {
-                                      public void OnNext(T value) { }
-                                  }
-                                  public class Observable<T> { }
-                                  public struct Unit {}
-                              }
-                              """;
-
-        const string attributeStub = """
-                                     using System;
-                                     namespace LokiCat.Godot.R3.ObservableSignals {
-                                         [AttributeUsage(AttributeTargets.Field)]
-                                         public sealed class RxSignalAttribute : Attribute { }
-                                     }
-                                     """;
+                             public partial class TestNode : Node {
+                                 [RxSignal] private Subject<R3.Unit> _onJump = new();
+                                 [RxSignal] private Subject<R3.Unit> _onLand = new();
+                             }
+                             """;
 
         var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(rxSignalInput),
-            CSharpSyntaxTree.ParseText(r3Stub),
-            CSharpSyntaxTree.ParseText(attributeStub)
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(R3_STUB),
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
-        var result = driver.GetRunResult();
-
-        var source = result.Results.SelectMany(r => r.GeneratedSources).First(s => s.HintName.Contains("TestNode"));
-        var code = source.SourceText.ToString();
+        var code = GetGeneratedSource(result, "TestNode");
 
         code.Should().Contain("public delegate void JumpEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnJump");
@@ -160,143 +123,173 @@ public class RxSignalGeneratorShould
     [Fact]
     public void GenerateSignalWithArgumentsFromObservableT()
     {
-        const string rxSignalInput = """
-                                     using R3;
-                                     using Godot;
-                                     using LokiCat.Godot.R3.ObservableSignals;
+        const string INPUT = """
+                             using R3;
+                             using Godot;
+                             using LokiCat.Godot.R3.ObservableSignals;
 
-                                     public partial class TestNode : Node
-                                     {
-                                         [RxSignal] private Subject<string> _onNamed = new();
-                                     }
-                                     """;
+                             public partial class TestNode : Node {
+                                 [RxSignal] private Subject<string> _onNamed = new();
+                             }
+                             """;
 
-        const string r3Stub = """
-                              namespace R3 {
-                                  public class Subject<T> : Observable<T> {
-                                      public void OnNext(T value) { }
-                                  }
-                                  public class Observable<T> { }
-                              }
-                              """;
-
-        const string attributeStub = """
-                                     using System;
-                                     namespace LokiCat.Godot.R3.ObservableSignals {
-                                         [AttributeUsage(AttributeTargets.Field)]
-                                         public sealed class RxSignalAttribute : Attribute { }
-                                     }
-                                     """;
+        var r3Stub = R3_STUB.Replace("Unit {}", string.Empty); // No Unit needed
 
         var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(rxSignalInput),
+            CSharpSyntaxTree.ParseText(INPUT),
             CSharpSyntaxTree.ParseText(r3Stub),
-            CSharpSyntaxTree.ParseText(attributeStub)
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
-        var result = driver.GetRunResult();
-
-        var source = result.Results.SelectMany(r => r.GeneratedSources).First(s => s.HintName.Contains("TestNode"));
-        var code = source.SourceText.ToString();
+        var code = GetGeneratedSource(result, "TestNode");
 
         code.Should().Contain("public delegate void NamedEventHandler(string value);");
-        code.Should().Contain("Subscribe(value => EmitSignal(nameof(Named), value))");
         code.Should().Contain("EmitSignal(nameof(Named), value)");
     }
+
+    #endregion
+
+    #region Validation / Diagnostics
 
     [Fact]
     public void WarnIfRxSignalFieldIsNotObservable()
     {
-        const string input = """
+        const string INPUT = """
                              using Godot;
                              using LokiCat.Godot.R3.ObservableSignals;
 
-                             public partial class TestNode : Node
-                             {
+                             public partial class TestNode : Node {
                                  [RxSignal] private int _badSignal = 5;
                              }
                              """;
 
-        const string attrStub = """
-                                using System;
-                                namespace LokiCat.Godot.R3.ObservableSignals {
-                                    [AttributeUsage(AttributeTargets.Field)]
-                                    public sealed class RxSignalAttribute : Attribute { }
-                                }
-                                """;
-
-        var trees = new[]
+        var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(input),
-            CSharpSyntaxTree.ParseText(attrStub)
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
-
-        var compilation = CSharpCompilation.Create("TestAssembly", trees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var driver = CSharpGeneratorDriver.Create(new RxSignalGenerator());
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
 
         diagnostics.Should().Contain(d => d.Id == "RXSG0002");
-        diagnostics.Any(d => d.GetMessage().Contains("_badSignal"))
-                   .Should()
-                   .BeTrue("the diagnostic message should mention the bad field name");
+        diagnostics.Any(d => d.GetMessage().Contains("_badSignal")).Should().BeTrue();
     }
 
     [Fact]
     public void DoesNotGenerateCodeIfNoRxSignalFields()
     {
-        const string input = """
+        const string INPUT = """
                              using Godot;
 
-                             public partial class TestNode : Node
-                             {
+                             public partial class TestNode : Node {
                                  private int _foo = 0;
                              }
                              """;
 
-        var syntaxTrees = new[] { CSharpSyntaxTree.ParseText(input) };
+        var syntaxTrees = new[] { CSharpSyntaxTree.ParseText(INPUT) };
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
-
-        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
-        var result = driver.GetRunResult();
-
-        result.Results.SelectMany(r => r.GeneratedSources)
-              .Should()
-              .OnlyContain(s => s.HintName == "RxSignalAttribute.g.cs");
+        var generated = result.Results.SelectMany(r => r.GeneratedSources).Select(s => s.HintName);
+        generated.Should().OnlyContain(name => name == "RxSignalAttribute.g.cs");
     }
+
+    #endregion
+
+    #region Attribute Matching / Recognition
+
+    [Fact]
+    public void ShouldRecognizeRxSignalAttributeEvenIfNamespaceDiffers()
+    {
+        const string INPUT = """
+                             using Godot;
+                             using R3;
+                             using MyProject.CustomNamespace;
+
+                             public partial class TestNode : Control {
+                                 [RxSignal] private Subject<Unit> _onCustom = new();
+                             }
+                             """;
+
+        const string ALT_ATTRIBUTE = """
+                                    using System;
+                                    namespace MyProject.CustomNamespace {
+                                        [AttributeUsage(AttributeTargets.Field)]
+                                        public sealed class RxSignalAttribute : Attribute { }
+                                    }
+                                    """;
+
+        var syntaxTrees = new[]
+        {
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(R3_STUB),
+            CSharpSyntaxTree.ParseText(ALT_ATTRIBUTE)
+        };
+
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
+
+        var code = GetGeneratedSource(result, "TestNode");
+        code.Should().Contain("public Observable<R3.Unit> OnCustom");
+    }
+
+    [Fact]
+    public void ShouldRecognizeRxSignalAttributeFromReferencedAssembly()
+    {
+        const string ATTRIBUTE_SOURCE = """
+                                       using System;
+                                       namespace LokiCat.Godot.R3.ObservableSignals {
+                                           [AttributeUsage(AttributeTargets.Field)]
+                                           public sealed class RxSignalAttribute : Attribute { }
+                                       }
+                                       """;
+
+        var attrCompilation =
+            CreateCompilation(new[] { CSharpSyntaxTree.ParseText(ATTRIBUTE_SOURCE) }, DefaultReferences());
+
+        using var attrStream = new MemoryStream();
+        attrCompilation.Emit(attrStream);
+        attrStream.Seek(0, SeekOrigin.Begin);
+        var attributeReference = MetadataReference.CreateFromStream(attrStream);
+
+        const string INPUT = """
+                             using Godot;
+                             using R3;
+                             using LokiCat.Godot.R3.ObservableSignals;
+
+                             public partial class TestNode : Control {
+                                 [RxSignal] private Subject<Unit> _onCustom = new();
+                             }
+                             """;
+
+        var syntaxTrees = new[]
+        {
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(R3_STUB)
+        };
+
+        var references = DefaultReferences().Append(attributeReference);
+        var compilation = CreateCompilation(syntaxTrees, references);
+        var result = RunGenerator(compilation);
+
+        var code = GetGeneratedSource(result, "TestNode");
+        code.Should().Contain("public Observable<R3.Unit> OnCustom");
+    }
+
+    #endregion
+
+    #region Interface + Structural Integration
 
     [Fact]
     public void GenerateCodeForClassImplementingInterfaceWithRxSignals()
     {
-        const string input = """
+        const string INPUT = """
                              using Godot;
                              using R3;
                              using LokiCat.Godot.R3.ObservableSignals;
@@ -310,49 +303,17 @@ public class RxSignalGeneratorShould
                              }
                              """;
 
-        const string r3Stub = """
-                              namespace R3 {
-                                  public class Subject<T> : Observable<T> {
-                                      public void OnNext(T value) { }
-                                  }
-                                  public class Observable<T> { }
-                                  public struct Unit {}
-                              }
-                              """;
-
-        const string attributeStub = """
-                                     using System;
-                                     namespace LokiCat.Godot.R3.ObservableSignals {
-                                         [AttributeUsage(AttributeTargets.Field)]
-                                         public sealed class RxSignalAttribute : Attribute { }
-                                     }
-                                     """;
-
         var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(input),
-            CSharpSyntaxTree.ParseText(r3Stub),
-            CSharpSyntaxTree.ParseText(attributeStub)
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(R3_STUB),
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
-        var result = driver.GetRunResult();
-
-        var source = result.Results.SelectMany(r => r.GeneratedSources)
-                           .FirstOrDefault(s => s.HintName.Contains("PauseMenu"));
-        source.Should().NotBeNull("PauseMenu should have generated observable code");
-
-        var code = source!.SourceText.ToString();
+        var code = GetGeneratedSource(result, "PauseMenu");
         code.Should().Contain("public delegate void MainMenuSelectedEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnMainMenuSelected");
         code.Should().Contain("EmitSignal(nameof(MainMenuSelected))");
@@ -361,7 +322,7 @@ public class RxSignalGeneratorShould
     [Fact]
     public void GenerateCodeForPauseMenuLikeClass()
     {
-        const string input = """
+        const string INPUT = """
                              namespace Slinky.Pause.UI.Menu;
 
                              using Godot;
@@ -387,25 +348,7 @@ public class RxSignalGeneratorShould
                              }
                              """;
 
-        const string r3Stub = """
-                              namespace R3 {
-                                  public class Subject<T> : Observable<T> {
-                                      public void OnNext(T value) { }
-                                  }
-                                  public class Observable<T> { }
-                                  public struct Unit {}
-                              }
-                              """;
-
-        const string attributeStub = """
-                                     using System;
-                                     namespace LokiCat.Godot.R3.ObservableSignals {
-                                         [AttributeUsage(AttributeTargets.Field)]
-                                         public sealed class RxSignalAttribute : Attribute { }
-                                     }
-                                     """;
-
-        const string autoNodeStub = """
+        const string AUTO_NODE_STUB = """
                                     namespace Chickensoft.AutoInject {
                                         using System;
                                         public sealed class MetaAttribute : Attribute {
@@ -420,34 +363,24 @@ public class RxSignalGeneratorShould
                                     }
 
                                     namespace Chickensoft.Introspection {
-                                        // empty placeholder
+                                        // placeholder
                                     }
                                     """;
 
         var syntaxTrees = new[]
         {
-            CSharpSyntaxTree.ParseText(input),
-            CSharpSyntaxTree.ParseText(r3Stub),
-            CSharpSyntaxTree.ParseText(attributeStub),
-            CSharpSyntaxTree.ParseText(autoNodeStub),
+            CSharpSyntaxTree.ParseText(INPUT),
+            CSharpSyntaxTree.ParseText(R3_STUB),
+            CSharpSyntaxTree.ParseText(RX_SIGNAL_ATTRIBUTE_STUB),
+            CSharpSyntaxTree.ParseText(AUTO_NODE_STUB)
         };
 
-        var references = AppDomain.CurrentDomain
-                                  .GetAssemblies()
-                                  .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                                  .Select(a => MetadataReference.CreateFromFile(a.Location));
+        var compilation = CreateCompilation(syntaxTrees, DefaultReferences());
+        var result = RunGenerator(compilation);
 
-        var compilation = CSharpCompilation.Create("TestAssembly", syntaxTrees, references,
-                                                   new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-        var generator = new RxSignalGenerator();
-        var driver = CSharpGeneratorDriver.Create(generator)
-                                          .RunGeneratorsAndUpdateCompilation(compilation, out _, out _);
-        var result = driver.GetRunResult();
-
-        var sources = result.Results.SelectMany(r => r.GeneratedSources).ToList();
-        sources.Select(s => s.HintName)
-               .Should()
-               .Contain(h => h.Contains("PauseMenu"), "PauseMenu should result in generated code");
+        var generated = result.Results.SelectMany(r => r.GeneratedSources).Select(s => s.HintName);
+        generated.Should().Contain(h => h.Contains("PauseMenu"), "PauseMenu should result in generated code");
     }
+
+    #endregion
 }

@@ -30,7 +30,7 @@
         <DisableWorkloadAutoImport>true</DisableWorkloadAutoImport>
         <SourceLinkCreate>true</SourceLinkCreate>
         <AssemblyTitle>LokiCat.Godot.R3.ObservableSignals.ObservableGenerator</AssemblyTitle>
-        <Description>Generates AsObservable extensions for GodotNodeInterfaces</Description>
+        <Description>Generates AsObservable extensions for Godot Signals</Description>
         <Company>LokiCat</Company>
         <Product>LokiCat.Godot.R3.ObservableSignals.ObservableGenerator</Product>
         <DebugSymbols>true</DebugSymbols>
@@ -49,8 +49,20 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="Features\Attributes\RxSignalAttribute.cs" Pack="true" PackagePath="buildTransitive\RxSignalAttribute.cs" />
+        <Content Include="Features/Attributes/RxSignalAttribute.cs">
+            <Pack>true</Pack>
+            <PackagePath>buildTransitive/RxSignalAttribute.cs</PackagePath>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Content>
+
+        <Content Include="buildTransitive/LokiCat.Godot.R3.ObservableSignals.props">
+            <Pack>true</Pack>
+            <PackagePath>buildTransitive/LokiCat.Godot.R3.ObservableSignals.props</PackagePath>
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </Content>
     </ItemGroup>
+
+
     
     <ItemGroup>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />

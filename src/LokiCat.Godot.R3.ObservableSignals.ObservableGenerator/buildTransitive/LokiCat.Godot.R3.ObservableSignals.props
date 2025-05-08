@@ -1,5 +1,5 @@
 <Project>
     <ItemGroup>
-        <Compile Include="$(MSBuildThisFileDirectory)RxSignalAttribute.cs" />
+        <Compile Include="$(MSBuildThisFileDirectory)RxEmitAttribute.cs" />
     </ItemGroup>
 </Project>

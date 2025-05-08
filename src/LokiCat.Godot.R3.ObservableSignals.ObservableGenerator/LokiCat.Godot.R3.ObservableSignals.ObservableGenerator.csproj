@@ -49,9 +49,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="Features/Attributes/RxSignalAttribute.cs">
+        <Content Include="Features/Attributes/RxEmitAttribute.cs">
             <Pack>true</Pack>
-            <PackagePath>buildTransitive/RxSignalAttribute.cs</PackagePath>
+            <PackagePath>buildTransitive/RxEmitAttribute.cs</PackagePath>
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </Content>
 

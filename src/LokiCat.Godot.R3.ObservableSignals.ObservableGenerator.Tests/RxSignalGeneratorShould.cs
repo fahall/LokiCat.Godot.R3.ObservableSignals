@@ -9,20 +9,19 @@ using Xunit.Abstractions;
 
 namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Tests;
 
-public class RxSignalGeneratorShould
+public class RxSignalGeneratorShould(ITestOutputHelper testOutputHelper)
 {
-    private readonly ITestOutputHelper _testOutputHelper;
-    public RxSignalGeneratorShould(ITestOutputHelper testOutputHelper) => _testOutputHelper = testOutputHelper;
+    private readonly ITestOutputHelper _testOutputHelper = testOutputHelper;
 
     private const string R3_STUB = """
-                                  namespace R3 {
-                                      public class Subject<T> : Observable<T> {
-                                          public void OnNext(T value) { }
-                                      }
-                                      public class Observable<T> { }
-                                      public struct Unit {}
-                                  }
-                                  """;
+                                   namespace R3 {
+                                       public class Subject<T> : Observable<T> {
+                                           public void OnNext(T value) { }
+                                       }
+                                       public class Observable<T> { }
+                                       public struct Unit {}
+                                   }
+                                   """;
 
     private const string RX_SIGNAL_ATTRIBUTE_STUB = """
                                                  using System;
@@ -82,7 +81,7 @@ public class RxSignalGeneratorShould
 
         code.Should().Contain("public delegate void JumpEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnJump");
-        code.Should().Contain("EmitSignal(nameof(Jump))");
+        code.Should().Contain("EmitSignal(SignalName.Jump)");
     }
 
     [Fact]
@@ -113,11 +112,11 @@ public class RxSignalGeneratorShould
 
         code.Should().Contain("public delegate void JumpEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnJump");
-        code.Should().Contain("EmitSignal(nameof(Jump))");
+        code.Should().Contain("EmitSignal(SignalName.Jump)");
 
         code.Should().Contain("public delegate void LandEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnLand");
-        code.Should().Contain("EmitSignal(nameof(Land))");
+        code.Should().Contain("EmitSignal(SignalName.Land)");
     }
 
     [Fact]
@@ -148,7 +147,7 @@ public class RxSignalGeneratorShould
         var code = GetGeneratedSource(result, "TestNode");
 
         code.Should().Contain("public delegate void NamedEventHandler(string value);");
-        code.Should().Contain("EmitSignal(nameof(Named), value)");
+        code.Should().Contain("EmitSignal(SignalName.Named, value)");
     }
 
     #endregion
@@ -316,7 +315,7 @@ public class RxSignalGeneratorShould
         var code = GetGeneratedSource(result, "PauseMenu");
         code.Should().Contain("public delegate void MainMenuSelectedEventHandler();");
         code.Should().Contain("public Observable<R3.Unit> OnMainMenuSelected");
-        code.Should().Contain("EmitSignal(nameof(MainMenuSelected))");
+        code.Should().Contain("EmitSignal(SignalName.MainMenuSelected)");
     }
 
     [Fact]

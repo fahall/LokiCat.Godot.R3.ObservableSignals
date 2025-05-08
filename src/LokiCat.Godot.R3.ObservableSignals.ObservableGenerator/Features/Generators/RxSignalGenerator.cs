@@ -141,7 +141,7 @@ public partial class {{className}}
     {
         if (_{{baseName}}Connected) return;
         _{{baseName}}Connected = true;
-        {{fieldName}}.Subscribe(value => EmitSignal(nameof({{signalName}}){{(emitArgs == "" ? "" : $", {emitArgs}")}})).AddTo(this);
+        {{fieldName}}.Subscribe(value => EmitSignal(SignalName.{{signalName}}{{(emitArgs == "" ? "" : $", {emitArgs}")}})).AddTo(this);
     }
 
     /// <summary>

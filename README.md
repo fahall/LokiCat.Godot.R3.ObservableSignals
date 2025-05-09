@@ -1,68 +1,84 @@
 ﻿# LokiCat.Godot.R3.ObservableSignals
 
-**R3-compatible source generator for turning `[RxSignal]`-annotated observables and `[Signal]`-annotated delegates in Godot C# into fully reactive Godot signals and cached `Observable<T>` properties.**
+**A source generator that turns `[Signal]`-annotated delegates into fully reactive R3 `Observable<T>` properties.**  
+Supports zero to five signal arguments, automatic `EmitSignal(...)` wiring, and full Godot editor compatibility.
 
-This package eliminates boilerplate when exposing Godot signals through R3 observables.  
-It provides two distinct but complementary features:
-- **[RxSignal]** — Turn your private observable fields into real Godot signals and clean public properties.
-- **[Signal]** — Automatically wrap built-in and custom Godot signals into Observables.
+---
 
-> 📢 **Important:**
-> - `[RxSignal]`: `_onJump` ➔ `OnJump` observable ➔ emits `Jump` Godot signal.
-> - `[Signal]`: `JumpEventHandler` delegate ➔ `Jump` Godot signal ➔ exposes `OnJump` observable.
+## ✨ What It Does
 
-| Attribute | Field | Godot Signal | Observable |
-|:---|:---|:---|:---|
-| `[RxSignal]` | `_onJump` | `Jump` | `OnJump` |
-| `[Signal]` | `JumpEventHandler` | `Jump` | `OnJump` |
+This generator lets you define a signal once using Godot's `[Signal]` attribute:
+
+```csharp
+[Signal]
+public delegate void JumpEventHandler();
+```
+
+💥 And automatically provides:
+
+- ✅ A backing `Subject<T>` (`_onJump`)
+- ✅ A public observable property (`OnJump`)
+- ✅ A lazy `.Subscribe(...)` that calls `EmitSignal(...)` with proper arguments
+
+No need to write `Connect()`, `EmitSignal()`, or observable plumbing by hand.
 
 ---
 
 ## 🚀 Quick Start
 
-### To expose a custom signal:
-
-```csharp
-[RxSignal]
-private Subject<Unit> _onJump = new();
-
-// Access OnJump and subscribe
-OnJump.Subscribe(_ => GD.Print("Jumped!"));
-
-// Fire the signal manually
-_onJump.OnNext(Unit.Default);
-```
-
-✅ The Godot editor shows a `Jump` signal, auto-wired.
-
-### To wrap a built-in or manual signal:
+### ✅ Define your signal:
 
 ```csharp
 [Signal]
-public delegate void JumpEventHandler();
-
-// Automatically exposes OnJump observable
-OnJump.Subscribe(_ => GD.Print("Built-in Jumped!"));
+public delegate void DamageTakenEventHandler(int amount);
 ```
 
-✅ The `Jump` Godot signal emits and is observed reactively.
+### ✅ Emit it in your code:
+
+```csharp
+_onDamageTaken.OnNext(42);
+```
+
+### ✅ Observe it reactively:
+
+```csharp
+OnDamageTaken.Subscribe(amount => GD.Print($"Took {amount} damage!"));
+```
+
+✅ The Godot editor will show a `DamageTaken` signal.  
+✅ R3 observers will get updates when the signal fires.
 
 ---
 
-## ✨ Features
+## 🧠 How It Works
 
-- **[RxSignal]**
-  - Detects `[RxSignal]`-annotated observable fields.
-  - Generates matching `[Signal]` Godot delegates (like `JumpEventHandler`).
-  - Exposes a lazily connected public `Observable<T>` property (`OnJump`).
+For this:
 
-- **[Signal]**
-  - Detects `[Signal]`-annotated delegates.
-  - Wraps Godot signals as reactive `Observable<T>` properties (`OnJump`).
+```csharp
+[Signal]
+public delegate void HitEventHandler(Vector3 point, Node target);
+```
 
-- Full R3 compatibility.
-- Full Godot Editor and visual signal connection support.
-- Fast incremental source generation.
+The generator emits:
+
+```csharp
+private readonly Subject<(Vector3, Node)> _onHit = new();
+private bool _hitConnected;
+
+public Observable<(Vector3, Node)> OnHit {
+  get {
+    if (!_hitConnected) {
+      _hitConnected = true;
+      _onHit.Subscribe(value =>
+        EmitSignal(nameof(Hit), value.Item1, value.Item2)
+      ).AddTo(this);
+    }
+    return _onHit;
+  }
+}
+```
+
+✅ One subject powers both `EmitSignal(...)` and the reactive pipeline.
 
 ---
 
@@ -72,44 +88,55 @@ OnJump.Subscribe(_ => GD.Print("Built-in Jumped!"));
 dotnet add package LokiCat.Godot.R3.ObservableSignals
 ```
 
+Make sure your consumer project defines:
+
+```csharp
+public readonly struct Unit {} // in namespace R3
+```
+
+(Only needed for 0-arg signals.)
+
 ---
 
-## ✅ Supported Signal Forms
+## ✅ Supported Signal Signatures
 
-| Observable Type                     | Generated Signal and Emission |
-|:------------------------------------ |:-------------------------------|
-| `Observable<Unit>`                  | `EmitSignal("SignalName")`     |
-| `Observable<T>`                     | `EmitSignal("SignalName", T)`  |
-| `Observable<(T1, T2)>`              | `EmitSignal("SignalName", T1, T2)` |
-| ... up to 5 arguments               | `EmitSignal("SignalName", T1, T2, ..., T5)` |
+| Delegate Type                        | Observable Type                     | Emission |
+|-------------------------------------|-------------------------------------|----------|
+| `delegate void JumpEventHandler()`  | `Observable<Unit>`                  | `EmitSignal("Jump")` |
+| `delegate void DamageEventHandler(int dmg)` | `Observable<int>`           | `EmitSignal("Damage", dmg)` |
+| `delegate void HitEventHandler(Vector3, Node)` | `Observable<(Vector3, Node)>` | `EmitSignal("Hit", ...)` |
 
-> Signals with more than 5 parameters are not supported and will trigger a generator warning.
+Up to **5 arguments** supported. More than 5 triggers a warning.
+
+---
+
+## 🚨 Generator Warnings
+
+| ID        | Reason |
+|-----------|--------|
+| `SIGOBS001` | Signal delegate has more than 5 parameters |
+| `SIGOBS002` | Missing `R3.Unit` type for 0-arg signals |
+| `SIGOBS003` | `EmitSignal("X")` is called manually, but will not emit to OnX |
 
 ---
 
 ## ⚡ Best Practices
 
-- Use `[RxSignal]` for custom gameplay-driven events you control.
-- Use `[Signal]` for observing existing Godot signals.
-- Always prefix `[RxSignal]` fields with `_on`.
-- Compose filtered observables manually (`.Where`, `.Throttle`, etc.).
+- Declare signals once with `[Signal]`
+- Emit signals using `_onX.OnNext(...)` — not `EmitSignal(...)`
+- Observe using `OnX.Subscribe(...)`
+- Use `.Where`, `.Throttle`, `.TakeUntil(...)` for filtered pipelines
+- Expose `Observable<T>`s in interfaces to keep logic clean
 
 ---
 
-## 🚨 Warnings
+## 💡 Advanced
 
-- `[RxSignal]` fields must be `Observable<T>` — otherwise, warning `RXSG0002`.
-- `[Signal]` delegates over 5 parameters trigger warning `SIGOBS001`.
-- Signal names are sanitized to valid C# identifiers.
-
----
-
-# 📜 License
-
-MIT License.
+If you manually call `EmitSignal(...)`, observers on `OnX` **will not** receive anything.  
+Only `_onX.OnNext(...)` propagates to both `EmitSignal(...)` and the observable.
 
 ---
 
-# 💡 Bonus Tip
+## 📜 License
 
-Pair this generator with Chickensoft, R3, Godot, and other LokiCat Godot/.NET packages to build fully reactive, signal-driven gameplay systems that are easy to extend, test, and maintain.
+MIT License

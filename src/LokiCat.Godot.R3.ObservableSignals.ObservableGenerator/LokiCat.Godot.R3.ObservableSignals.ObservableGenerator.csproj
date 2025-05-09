@@ -48,20 +48,6 @@
         <None Include="../../README.md" Pack="true" PackagePath="" />
     </ItemGroup>
 
-    <ItemGroup>
-        <Content Include="Features/Attributes/RxEmitAttribute.cs">
-            <Pack>true</Pack>
-            <PackagePath>buildTransitive/RxEmitAttribute.cs</PackagePath>
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </Content>
-
-        <Content Include="buildTransitive/LokiCat.Godot.R3.ObservableSignals.props">
-            <Pack>true</Pack>
-            <PackagePath>buildTransitive/LokiCat.Godot.R3.ObservableSignals.props</PackagePath>
-            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
-
 
     
     <ItemGroup>

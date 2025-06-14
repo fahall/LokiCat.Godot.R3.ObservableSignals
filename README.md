@@ -64,7 +64,9 @@ public delegate void IsDeadEventHandler(bool isDead);
 Generates:
 
 ```csharp
-public IRxProp<bool> IsDead => ...;
+public IRxProp<bool> IsDead => _isDead;
+private RxVar<bool> _isDead = new RxVar<bool>(false);
+/* And wiring to the Godot signal */
 ```
 
 ### 🧠 Naming Rules
@@ -72,19 +74,22 @@ public IRxProp<bool> IsDead => ...;
 The generated property name:
 
 * Always starts with `Is`
-* Strips a leading `Is` from the delegate name if it exists as a standalone prefix
+* Removes a leading `Is` **only if** it's a full word prefix (i.e. `Is` followed by an uppercase letter)
+* Does not remove `Is` from words like `Island`, `Isotope`, etc.
 * Strips the `EventHandler` suffix
 
 Examples:
 
-| Delegate Name              | Generated Property Name |
-| -------------------------- | ----------------------- |
-| `IsDeadEventHandler`       | `IsDead`                |
-| `DeadEventHandler`         | `IsDead`                |
-| `IslandEventHandler`       | `IsIsland`              |
-| `IsIslandEventHandler`     | `IsIsland`              |
-| `IslandTimeEventHandler`   | `IsIslandTime`          |
-| `IsIslandTimeEventHandler` | `IsIslandTime`          |
+| Delegate Name                        | Generated Property Name |
+| ------------------------------------ | ----------------------- |
+| `IsDeadEventHandler`                 | `IsDead`                |
+| `DeadEventHandler`                   | `IsDead`                |
+| `IslandEventHandler`                 | `IsIsland`              |
+| `IsIslandEventHandler`               | `IsIsland`              |
+| `IslandTimeEventHandler`             | `IsIslandTime`          |
+| `IsIslandTimeEventHandler`           | `IsIslandTime`          |
+| `IsNotNotarizedEventHandler`         | `IsNotarized`           |
+| `IsNoteInverselyInverseEventHandler` | `IsNoteInversely`       |
 
 ---
 
@@ -92,15 +97,19 @@ Examples:
 
 Generate inverse signals from a single source:
 
+🗒️ Godot does not support easy transformation of signals. This generator allows you to define a signal and automatically generate its inverse.
+> 💡 TODO: Add more robust signal transformation support via `[SignalTransform(<TBD Syntax>)]` attribute.
+
+
 ```csharp
 [Signal]
 [RxObservable]
-public delegate void IsVisibleEventHandler(bool value);
+public delegate void VisibleEventHandler(bool value);
 
-// inferred from name:
+// inferred from name
 [Signal]
 [InverseSignal]
-public delegate void IsInvisibleEventHandler(bool value);
+public delegate void NotVisibleEventHandler(bool value);
 
 // explicit source:
 [Signal]
@@ -112,16 +121,39 @@ public delegate void HiddenEventHandler(bool value);
 🚫 Only valid for `bool` signals
 🚫 Cannot be used with `[RxProperty]`
 
+### 🔍 Inferred Naming Behavior
+
+When no `nameof(...)` is used, the generator infers the target by removing the words `Not` or `Inverse` **only when they are complete words** — using word-boundary-aware matching. It does **not** remove them when embedded in words:
+
+| Inverse Name                         | Inferred Target Name                                             |
+|--------------------------------------|------------------------------------------------------------------|
+| `NotVisibleEventHandler`             | `VisibleEventHandler`                                            |
+| `InverseHiddenEventHandler`          | `HiddenEventHandler`                                             |
+| `IsNotNotarizedEventHandler`         | `IsNotarizedEventHandler`  ✅ no strip inside word                |
+| `IsNoteInverselyInverseEventHandler` | `IsNoteInverselyEventHandler` ✅ no strip                         |
+| `IsInvisible`                        | `InvisibleEventHandler`    ❗ no automatic mapping to `IsVisible` |
+
+For symmetric relationships (e.g. `IsVisible`/`IsInvisible`), use `[InverseSignal(nameof(...))]` explicitly.
+
 ---
 
 ## ✅ Supported Signal Signatures
 
 | Delegate Type                                  | Observable Type                  | Emission                      |
-| ---------------------------------------------- | -------------------------------- | ----------------------------- |
+|------------------------------------------------|----------------------------------|-------------------------------|
 | `delegate void JumpEventHandler()`             | `Observable<Unit>`               | `EmitSignal("Jump")`          |
 | `delegate void DamageEventHandler(int)`        | `Observable<int>`                | `EmitSignal("Damage", dmg)`   |
 | `delegate void HitEventHandler(Vector3, Node)` | `Observable<(Vector3, Node)>`    | `EmitSignal("Hit", ...)`      |
 | `delegate void IsDeadEventHandler(bool)`       | `IRxProp<bool>` (`[RxProperty]`) | `EmitSignal("IsDead", value)` |
+
+
+| Attribute                                | Observable Type                  | Parameter Count               |
+|------------------------------------------|----------------------------------|-------------------------------|
+| `[RxProperty]`                           | `IRxProp<T>`,`RxVar<T>`          | 0 or 1 (e.g. <Unit> or <T>)   |
+| `[RxObservable]`                         | `Observable<int>`, `Subject<T>`  | 5 (e.g. <T1,T2,T3,T4,T5>      |
+| `[InverseSignal]`                        | N/A                              | 1 `bool`                      |
+| `delegate void IsDeadEventHandler(bool)` | `IRxProp<bool>` (`[RxProperty]`) | `EmitSignal("IsDead", value)` |
+
 
 Up to **5 parameters** are supported.
 
@@ -130,7 +162,7 @@ Up to **5 parameters** are supported.
 ## 🚨 Generator Diagnostics
 
 | ID          | Reason                                                         |
-| ----------- | -------------------------------------------------------------- |
+|-------------|----------------------------------------------------------------|
 | `SIGOBS001` | Missing `R3.Unit` for zero-arg signals                         |
 | `SIGOBS002` | Signal delegate has more than 5 parameters                     |
 | `SIGOBS003` | Manual `EmitSignal("X")` bypasses observable                   |

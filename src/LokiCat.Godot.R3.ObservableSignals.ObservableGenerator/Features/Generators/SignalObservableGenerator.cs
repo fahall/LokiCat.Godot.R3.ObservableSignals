@@ -188,6 +188,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         using R3;
         using R3.ReactiveProperty;
         using System.CodeDom.Compiler;
+        using LokiCat.Godot.R3.RxProps;
 
         namespace {{ns}};
 

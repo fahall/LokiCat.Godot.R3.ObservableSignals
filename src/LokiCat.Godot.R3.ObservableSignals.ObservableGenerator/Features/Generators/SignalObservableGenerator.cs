@@ -21,6 +21,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
     public void Execute(GeneratorExecutionContext context)
     {
         SignalObservableExtensionGenerator.EmitSignalObservableExtensions(context);
+        InverseSignalAttributeGenerator.EmitInverseSignalAttributeDefinition(context);
         ValidateEnvironment(context);
         foreach (var tree in context.Compilation.SyntaxTrees)
         {
@@ -56,7 +57,9 @@ public sealed class SignalObservableGenerator : ISourceGenerator
                 .Any(attr =>
                 {
                     var name = attr.Name.ToString();
-                    return name.Contains("Signal") || name.Contains("RxProperty");
+                    return name.Contains("Signal") 
+                           || name.Contains("RxProperty")
+                           || name.Contains("InverseSignal");
                 }));
 
         foreach (var delegateDecl in delegateDeclarations)
@@ -65,45 +68,72 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         }
     }
 
+    private record ParameterDefinition
+    {
+        public string AggregateType { get; }
+        public int Count { get; }
+        public SeparatedSyntaxList<ParameterSyntax> Parameters { get; }
+        public ParameterDefinition(DelegateDeclarationSyntax delegateDeclaration)
+        {
+            Parameters = delegateDeclaration.ParameterList.Parameters;
+            Count = Parameters.Count;
+            
+            
+            AggregateType = Count switch
+            {
+                0 => "Unit",
+                1 => Parameters[0].Type.ToString(),
+                2 => $"({Parameters[0].Type}, {Parameters[1].Type})",
+                3 => $"({Parameters[0].Type}, {Parameters[1].Type}, {Parameters[2].Type})",
+                4 => $"({Parameters[0].Type}, {Parameters[1].Type}, {Parameters[2].Type}, {Parameters[3].Type})",
+                5 => $"({Parameters[0].Type}, {Parameters[1].Type}, {Parameters[2].Type}, {Parameters[3].Type}, {Parameters[4].Type})",
+                _ => throw new TooManyParametersException(Parameters.Count, 5, "Too many parameters"),
+            };
+        }
+    }
+    
+    private class TooManyParametersException : Exception {
+        public int Count { get; }
+        public int Max { get; }
+
+        public TooManyParametersException(int count, int max,  string message) : base(message)
+        {
+            Count = count;
+            Max = max;
+        }
+    }
+    
     private static void ProcessDelegate(GeneratorExecutionContext context, DelegateDeclarationSyntax delegateDecl)
     {
-        var parameters = delegateDecl.ParameterList.Parameters;
-        var paramCount = parameters.Count;
+        try {
+        ParameterDefinition parameterDef = new ParameterDefinition(delegateDecl);
+        
+        var delegateName = delegateDecl.Identifier.Text;
 
-        if (paramCount > 5)
+        if (!delegateName.EndsWith("EventHandler"))
         {
-            var diagnostic = Diagnostic.Create(
-                new DiagnosticDescriptor(
-                    DIAGNOSTIC_ID,
-                    title: "Signal has too many parameters",
-                    messageFormat: "[Signal] delegate '{0}' has more than 5 parameters — observable not generated.",
-                    category: DIAGNOSTIC_CATEGORY,
-                    DiagnosticSeverity.Warning,
-                    isEnabledByDefault: true),
-                delegateDecl.GetLocation(),
-                delegateDecl.Identifier.Text
-            );
-            context.ReportDiagnostic(diagnostic);
             return;
         }
 
-        var delegateName = delegateDecl.Identifier.Text;
-        if (!delegateName.EndsWith("EventHandler")) return;
-
         var signalName = delegateName[..^"EventHandler".Length];
 
-        var hasRxProperty = delegateDecl.AttributeLists
-            .SelectMany(a => a.Attributes)
-            .Any(attr => attr.Name.ToString().Contains("RxProperty"));
+        var hasRxProperty = delegateDecl.HasAttribute("RxProperty");
 
-        var hasSignal = delegateDecl.AttributeLists
-            .SelectMany(a => a.Attributes)
-            .Any(attr => attr.Name.ToString().Contains("Signal"));
+        var hasSignal = delegateDecl.HasAttribute("Signal");
+        
+        var hasInverseSignal = delegateDecl.HasAttribute("InverseSignal");
 
-        if (!hasRxProperty && !hasSignal) return;
+        if (!hasRxProperty && !hasSignal && !hasInverseSignal)
+        {
+            return;
+        }
 
         var classDecl = delegateDecl.Parent as ClassDeclarationSyntax;
-        if (classDecl is null) return;
+
+        if (classDecl is null)
+        {
+            return;
+        }
 
         ValidateDoesNotEmitSignalManually(classDecl, signalName, context);
 
@@ -111,38 +141,104 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         var ns = Namespace.GetNamespace(classDecl);
         var model = context.Compilation.GetSemanticModel(delegateDecl.SyntaxTree);
 
-        var observableType = paramCount switch
-        {
-            0 => "Unit",
-            1 => model.GetTypeInfo(parameters[0].Type!).Type.GetFullTypeName(),
-            2 => $"({model.GetTypeInfo(parameters[0].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[1].Type!).Type.GetFullTypeName()})",
-            3 => $"({model.GetTypeInfo(parameters[0].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[1].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[2].Type!).Type.GetFullTypeName()})",
-            4 => $"({model.GetTypeInfo(parameters[0].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[1].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[2].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[3].Type!).Type.GetFullTypeName()})",
-            5 => $"({model.GetTypeInfo(parameters[0].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[1].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[2].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[3].Type!).Type.GetFullTypeName()}, {model.GetTypeInfo(parameters[4].Type!).Type.GetFullTypeName()})",
-            _ => throw new InvalidOperationException()
-        };
 
         if (hasRxProperty)
         {
-            EmitRxProperty(context, className, ns, signalName, observableType);
+            EmitRxProperty(context, className, ns, signalName, parameterDef);
         }
-        else
+        else if (hasInverseSignal)
         {
-            EmitObservable(context, className, ns, signalName, paramCount, observableType);
+            EmitInverseObservable(context, className, ns, signalName, parameterDef, delegateDecl);
         }
-    }
-
-    private static void EmitObservable(GeneratorExecutionContext context, string className, string ns, string signalName, int paramCount, string observableType)
+        else if (hasSignal)
+        {
+            EmitObservable(context, className, ns, signalName, parameterDef);
+        }
+        
+        } catch (TooManyParametersException e)
+        {
+            var diagnostic = Diagnostic.Create(
+                new DiagnosticDescriptor(
+                    DIAGNOSTIC_ID,
+                    title: "Signal has too many parameters",
+                    messageFormat: $"[Signal] delegate '{{0}}' has more than {e.Max} parameters — observable not generated.",
+                    category: DIAGNOSTIC_CATEGORY,
+                    DiagnosticSeverity.Warning,
+                    isEnabledByDefault: true),
+                delegateDecl.GetLocation(),
+                delegateDecl.Identifier.Text
+            );
+            context.ReportDiagnostic(diagnostic);
+        }
+    } 
+    private static void EmitInverseObservable(
+        GeneratorExecutionContext context,
+        string className,
+        string ns,
+        string signalName,
+        ParameterDefinition parameters,
+        DelegateDeclarationSyntax delegateDecl)
     {
-        var fieldName = $"_on{signalName}";
-        var connectedFlag = $"_{char.ToLowerInvariant(signalName[0])}{signalName[1..]}Connected";
-        var propertyName = $"On{signalName}";
-        var emitCall = paramCount switch
+        // Step 1: Resolve target delegate name via nameof(...) or inference
+        string targetDelegateName = null;
+
+        var inverseAttr = delegateDecl.AttributeLists
+            .SelectMany(a => a.Attributes)
+            .FirstOrDefault(attr => attr.Name.ToString().Contains("InverseSignal"));
+
+        if (inverseAttr?.ArgumentList?.Arguments.FirstOrDefault()?.Expression is InvocationExpressionSyntax invocation &&
+            invocation.Expression is IdentifierNameSyntax id &&
+            id.Identifier.Text == "nameof" &&
+            invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression is IdentifierNameSyntax name)
         {
-            0 => $"EmitSignal(nameof({signalName}))",
-            1 => $"EmitSignal(nameof({signalName}), value!)",
-            _ => $"EmitSignal(nameof({signalName}), {string.Join(", ", Enumerable.Range(1, paramCount).Select(i => $"value.Item{i}"))})"
-        };
+            var model = context.Compilation.GetSemanticModel(delegateDecl.SyntaxTree);
+            var symbol = model.GetSymbolInfo(name).Symbol;
+            targetDelegateName = symbol?.Name;
+        }
+
+        // If no nameof(...) specified, infer from own name
+        if (string.IsNullOrWhiteSpace(targetDelegateName))
+        {
+            targetDelegateName = signalName.Replace("Not", "").Replace("Inverse", "");
+        }
+
+        // Step 2: Locate the target delegate declaration
+        var root = delegateDecl.SyntaxTree.GetRoot();
+        var targetDelegate = root
+            .DescendantNodes()
+            .OfType<DelegateDeclarationSyntax>()
+            .FirstOrDefault(d => d.Identifier.Text == targetDelegateName);
+
+        if (targetDelegate == null)
+        {
+            ReportDiagnostic(context, delegateDecl, "SIGOBS006", $"[InverseSignal] target delegate '{targetDelegateName}' not found.");
+            return;
+        }
+
+        var targetParamDef = new ParameterDefinition(targetDelegate);
+
+        var mdl = context.Compilation.GetSemanticModel(delegateDecl.SyntaxTree);
+        if (targetParamDef.Count != 1 ||  mdl.GetTypeInfo(targetParamDef.Parameters[0].Type!).Type.IsBoolean())
+        {
+            ReportDiagnostic(context, delegateDecl, "SIGOBS007", $"[InverseSignal] target '{targetDelegateName}' must have exactly one bool parameter.");
+            return;
+        }
+
+        if (delegateDecl.HasAttribute("RxProperty"))
+        {
+            ReportDiagnostic(context, delegateDecl, "SIGOBS008", "[InverseSignal] cannot be combined with [RxProperty].");
+            return;
+        }
+
+        // Step 3: Determine backing observable field prefix
+        var isTargetRxProp = targetDelegate.HasAttribute("RxProperty");
+        var targetSignalBaseName = targetDelegateName[..^"EventHandler".Length];
+        var sourceField = isTargetRxProp ? $"_is{targetSignalBaseName}" : $"_on{targetSignalBaseName}";
+
+        // Step 4: Generate inverse observable
+        var connectedFlag = $"_{char.ToLowerInvariant(signalName[0])}{signalName[1..]}Connected";
+        var inverseField = $"_on{signalName}";
+        var propertyName = $"On{signalName}";
 
         var source = $$"""
         // <auto-generated />
@@ -153,11 +249,71 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         namespace {{ns}};
 
         public partial class {{className}} {
-          private readonly Subject<{{observableType}}> {{fieldName}} = new();
+          private readonly Subject<bool> {{inverseField}} = new();
           private bool {{connectedFlag}};
 
           [GeneratedCode("SignalObservableGenerator", "1.0.0")]
-          public Observable<{{observableType}}> {{propertyName}} {
+          public Observable<bool> {{propertyName}} {
+            get {
+              if (!{{connectedFlag}}) {
+                {{connectedFlag}} = true;
+                {{sourceField}}.Subscribe(value => {
+                  {{inverseField}}.OnNext(!value);
+                  EmitSignal(nameof({{signalName}}), !value);
+                }).AddTo(this);
+              }
+              return {{inverseField}};
+            }
+          }
+        }
+        """;
+
+        context.AddSource($"{className}.{propertyName}.inverse.g.cs", SourceText.From(source, Encoding.UTF8));
+    }
+
+    private static void ReportDiagnostic(GeneratorExecutionContext context, SyntaxNode node, string id, string message)
+    {
+        var descriptor = new DiagnosticDescriptor(
+            id, message, message,
+            DIAGNOSTIC_CATEGORY,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true
+        );
+        context.ReportDiagnostic(Diagnostic.Create(descriptor, node.GetLocation()));
+    }
+    private static string GetEmitCall(string signalName, ParameterDefinition parameters)
+    {
+        var emitCall = parameters.Count switch
+        {
+            0 => $"EmitSignal(nameof({signalName}))",
+            1 => $"EmitSignal(nameof({signalName}), value!)",
+            _ => $"EmitSignal(nameof({signalName}), {string.Join(", ", Enumerable.Range(1, parameters.Count).Select(i => $"value.Item{i}"))})"
+        };
+
+        return emitCall;
+    }
+
+    private static void EmitObservable(GeneratorExecutionContext context, string className, string ns, string signalName, ParameterDefinition parameters)
+    {
+        var fieldName = $"_on{signalName}";
+        var connectedFlag = $"_{char.ToLowerInvariant(signalName[0])}{signalName[1..]}Connected";
+        var propertyName = $"On{signalName}";
+        var emitCall = GetEmitCall(signalName, parameters);
+
+        var source = $$"""
+        // <auto-generated />
+        using Godot;
+        using R3;
+        using System.CodeDom.Compiler;
+
+        namespace {{ns}};
+
+        public partial class {{className}} {
+          private readonly Subject<{{parameters.AggregateType}}> {{fieldName}} = new();
+          private bool {{connectedFlag}};
+
+          [GeneratedCode("SignalObservableGenerator", "1.0.0")]
+          public Observable<{{parameters.AggregateType}}> {{propertyName}} {
             get {
               if (!{{connectedFlag}}) {
                 {{connectedFlag}} = true;
@@ -172,15 +328,13 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         context.AddSource($"{className}.{propertyName}.g.cs", SourceText.From(source, Encoding.UTF8));
     }
 
-    private static void EmitRxProperty(GeneratorExecutionContext context, string className, string ns, string signalName, string observableType)
+    private static void EmitRxProperty(GeneratorExecutionContext context, string className, string ns, string signalName, ParameterDefinition parameters)
     {
         var fieldName = $"_is{signalName}";
         var connectedFlag = $"_is{signalName}Connected";
         var propertyName = $"Is{signalName}";
 
-        var emitCall = observableType == "Unit"
-            ? $"EmitSignal(nameof({signalName}))"
-            : $"EmitSignal(nameof({signalName}), value)";
+        var emitCall = GetEmitCall(signalName, parameters);
 
         var source = $$"""
         // <auto-generated />
@@ -188,16 +342,15 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         using R3;
         using R3.ReactiveProperty;
         using System.CodeDom.Compiler;
-        using LokiCat.Godot.R3.RxProps;
 
         namespace {{ns}};
 
         public partial class {{className}} {
-          private readonly IRxVar<{{observableType}}> {{fieldName}} = new RxVar<{{observableType}}>();
+          private readonly IRxVar<{{parameters.AggregateType}}> {{fieldName}} = new RxVar<{{parameters.AggregateType}}>();
           private bool {{connectedFlag}};
 
           [GeneratedCode("SignalObservableGenerator", "1.0.0")]
-          public IRxProp<{{observableType}}> {{propertyName}} {
+          public IRxProp<{{parameters.AggregateType}}> {{propertyName}} {
             get {
               if (!{{connectedFlag}}) {
                 {{connectedFlag}} = true;

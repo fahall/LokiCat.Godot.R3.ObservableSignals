@@ -109,7 +109,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
 
             inverseMap.TryGetValue(delegateName, out var inverseName);
 
-            if (delegateDecl.HasAttribute("RxProperty"))
+            if (delegateDecl.HasAttribute(Attributes.RX_PROP))
             {
                 RxPropertyGenerator.Emit(
                     context,
@@ -121,7 +121,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
                     model
                 );
             }
-            else if (delegateDecl.HasAttribute("RxObservable"))
+            else if (delegateDecl.HasAttribute(Attributes.RX_OBSERVABLE))
             {
                 RxObservableGenerator.Emit(
                     context,

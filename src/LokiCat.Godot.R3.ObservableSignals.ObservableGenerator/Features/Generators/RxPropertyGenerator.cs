@@ -52,9 +52,12 @@ internal static class RxPropertyGenerator
                        get {
                          if (!{{connectedFlag}}) {
                            {{connectedFlag}} = true;
-                           {{observableField}}.AsObservable().Subscribe(value => {
-                             {{emitBody.ToString().TrimEnd()}}
-                           }).AddTo(this);
+                           {{observableField}}.AsObservable()
+                             .Skip(1)
+                             .Subscribe(value => {
+                               {{emitBody.ToString().TrimEnd()}}
+                             })
+                             .AddTo(this);
                          }
                          return {{fieldName}};
                        }

@@ -23,7 +23,6 @@ internal static class RxPropertyGenerator
 
     var fieldName = $"_is{propertyName}";
     var connectedFlag = $"_is{propertyName}Connected";
-    var observableField = $"_on{signalBaseName}";
 
     var emitBody = new StringBuilder();
     emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters) + ";");
@@ -52,7 +51,7 @@ internal static class RxPropertyGenerator
                        get {
                          if (!{{connectedFlag}}) {
                            {{connectedFlag}} = true;
-                           {{observableField}}.AsObservable()
+                           {{fieldName}}.AsObservable()
                              .Skip(1)
                              .Subscribe(value => {
                                {{emitBody.ToString().TrimEnd()}}

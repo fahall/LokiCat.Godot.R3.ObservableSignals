@@ -21,9 +21,8 @@ internal static class RxPropertyGenerator
       ? delegateName[..^"EventHandler".Length]
       : delegateName;
 
-    var fieldName = $"_is{propertyName}";
-    var connectedFlag = $"_is{propertyName}Connected";
-    var observableField = $"_on{signalBaseName}";
+    var fieldName = $"_now{propertyName}";
+    var connectedFlag = $"_now{propertyName}Connected";
 
     var emitBody = new StringBuilder();
     emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters) + ";");
@@ -52,9 +51,12 @@ internal static class RxPropertyGenerator
                        get {
                          if (!{{connectedFlag}}) {
                            {{connectedFlag}} = true;
-                           {{observableField}}.AsObservable().Subscribe(value => {
-                             {{emitBody.ToString().TrimEnd()}}
-                           }).AddTo(this);
+                           {{fieldName}}.AsObservable()
+                             .Skip(1)
+                             .Subscribe(value => {
+                               {{emitBody.ToString().TrimEnd()}}
+                             })
+                             .AddTo(this);
                          }
                          return {{fieldName}};
                        }
@@ -66,12 +68,12 @@ internal static class RxPropertyGenerator
   }
 
   /// <summary>
-  /// Prefix name with Is unless it's already prefixed with Is.
+  /// Prefix name with Is unless it's already prefixed with Now.
   /// </summary>
-  /// <example>IsotopeEventHandler -> >IsIsotope</example>
-  /// <example>IsIsotopeEventHandler -> >IsIsotope</example>
-  /// <example>IsDeadEventHandler -> IsDead</example>
-  /// <example>DeadEventHandler -> IsDead</example>
+  /// <example>IsotopeEventHandler -> >NowIsotope</example>
+  /// <example>IsIsotopeEventHandler -> >NowIsotope</example>
+  /// <example>IsDeadEventHandler -> NowDead</example>
+  /// <example>DeadEventHandler -> NowDead</example>
   /// <param name="delegateName"></param>
   /// <returns></returns>
   private static string GetRxPropertyName(string delegateName)
@@ -81,13 +83,15 @@ internal static class RxPropertyGenerator
       ? delegateName[..^"EventHandler".Length]
       : delegateName;
 
-    // Step 2: Strip "Is" only if it's a standalone prefix followed by an uppercase letter
-    if (baseName.StartsWith("Is") && baseName.Length > 2 && char.IsUpper(baseName[2]))
+    const string prefix = "Now";
+    var index = prefix.Length;
+    // Step 2: Strip "Now" only if it's a standalone prefix followed by an uppercase letter
+    if (baseName.StartsWith(prefix) && baseName.Length >= index && char.IsUpper(baseName[index]))
     {
-      baseName = baseName[2..];
+      baseName = baseName[index..];
     }
 
-    // Step 3: Prefix "Is"
-    return $"Is{baseName}";
+    // Step 3: Prefix "Now"
+    return $"{prefix}{baseName}";
   }
 }

@@ -5,10 +5,17 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Syntax
 
 public static class Attributes
 {
-    public static bool HasAttribute(this DelegateDeclarationSyntax declaration, string attributeName)
+    public static bool HasAttribute(this DelegateDeclarationSyntax decl, string attributeName)
     {
-        return declaration.AttributeLists
-                    .SelectMany(a => a.Attributes)
-                    .Any(attr => attr.Name.ToString().Equals(attributeName));
+        return decl.AttributeLists
+                   .SelectMany(a => a.Attributes)
+                   .Any(attr =>
+                   {
+                       var rawName = attr.Name.ToString();
+                       return rawName == attributeName ||
+                              rawName == attributeName + "Attribute" ||
+                              rawName.EndsWith("." + attributeName) ||
+                              rawName.EndsWith("." + attributeName + "Attribute");
+                   });
     }
 }

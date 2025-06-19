@@ -19,8 +19,8 @@ public static class AttributeGenerator
     {
         const string CUSTOM_BODY = $$"""
 {
-    public string OriginalName { get; }
-    public {{Attributes.INVERSE_SIGNAL}}Attribute(string originalName = null) => OriginalName = originalName;
+    public string? OriginalName { get; }
+    public {{Attributes.INVERSE_SIGNAL}}Attribute(string? originalName = null) => OriginalName = originalName;
 }
 """;
         AddSimpleAttribute(context, Attributes.INVERSE_SIGNAL, CUSTOM_BODY);

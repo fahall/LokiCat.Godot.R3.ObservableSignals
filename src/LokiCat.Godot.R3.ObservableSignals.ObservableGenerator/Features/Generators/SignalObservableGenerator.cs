@@ -115,7 +115,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
                     context,
                     className,
                     ns,
-                    signalName,
+                    delegateName,
                     parameters,
                     inverseName,
                     model

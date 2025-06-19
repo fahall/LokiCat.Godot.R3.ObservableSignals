@@ -67,12 +67,12 @@ internal static class RxPropertyGenerator
   }
 
   /// <summary>
-  /// Prefix name with Is unless it's already prefixed with Now.
+  /// Prefix name with Is unless it's already prefixed with Is.
   /// </summary>
-  /// <example>IsotopeEventHandler -> >NowIsotope</example>
-  /// <example>IsIsotopeEventHandler -> >NowIsotope</example>
-  /// <example>IsDeadEventHandler -> NowDead</example>
-  /// <example>DeadEventHandler -> NowDead</example>
+  /// <example>IsotopeEventHandler -> IsIsotope</example>
+  /// <example>IsIsotopeEventHandler -> IsIsotope</example>
+  /// <example>IsDeadEventHandler -> IsDead</example>
+  /// <example>DeadEventHandler -> IsDead</example>
   /// <param name="delegateName"></param>
   /// <returns></returns>
   private static string GetRxPropertyName(string delegateName)
@@ -82,15 +82,15 @@ internal static class RxPropertyGenerator
       ? delegateName[..^"EventHandler".Length]
       : delegateName;
 
-    const string prefix = "Now";
-    var index = prefix.Length;
-    // Step 2: Strip "Now" only if it's a standalone prefix followed by an uppercase letter
-    if (baseName.StartsWith(prefix) && baseName.Length >= index && char.IsUpper(baseName[index]))
+    const string PREFIX = "Is";
+    var index = PREFIX.Length;
+    // Step 2: Strip prefix only if it's a standalone prefix followed by an uppercase letter
+    if (baseName.StartsWith(PREFIX) && baseName.Length >= index && char.IsUpper(baseName[index]))
     {
       baseName = baseName[index..];
     }
 
-    // Step 3: Prefix "Now"
-    return $"{prefix}{baseName}";
+    // Step 3: Prefix with desired prefix
+    return $"{PREFIX}{baseName}";
   }
 }

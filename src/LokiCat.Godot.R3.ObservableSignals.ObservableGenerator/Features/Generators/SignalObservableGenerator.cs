@@ -55,7 +55,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
             title: "Debug Diagnostic",
             messageFormat: "Generating for {0}",
             category: "ObservableSignals",
-            DiagnosticSeverity.Warning, // ❗ Must be Warning or Error to ensure visibility
+            DiagnosticSeverity.Info,
             isEnabledByDefault: true
         );
 

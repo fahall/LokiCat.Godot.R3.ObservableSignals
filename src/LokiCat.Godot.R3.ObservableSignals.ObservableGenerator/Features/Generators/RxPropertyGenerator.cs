@@ -7,6 +7,10 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Genera
 
 internal static class RxPropertyGenerator
 {
+  private const string PUBLIC_PREFIX = "Is";
+  private const string PRIVATE_PREFIX = "_is";
+
+  
   internal static void Emit(
     GeneratorExecutionContext context,
     string className,
@@ -29,12 +33,9 @@ internal static class RxPropertyGenerator
                                delegateName));
     
     var propertyName = GetRxPropertyName(delegateName);
-    var signalBaseName = delegateName.EndsWith("EventHandler")
-      ? delegateName[..^"EventHandler".Length]
-      : delegateName;
-
-    var fieldName = $"_is{propertyName}";
-    var connectedFlag = $"_is{propertyName}Connected";
+    var signalBaseName = GetSignalBaseName(delegateName);
+    var fieldName = GetRxVarName(delegateName);
+    var connectedFlag = $"{fieldName}Connected";
 
     var emitBody = new StringBuilder();
     emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters) + ";");
@@ -89,20 +90,35 @@ internal static class RxPropertyGenerator
   /// <returns></returns>
   private static string GetRxPropertyName(string delegateName)
   {
-    // Step 1: Remove "EventHandler" suffix
-    var baseName = delegateName.EndsWith("EventHandler")
-      ? delegateName[..^"EventHandler".Length]
+    return DelegateWithPrefix(delegateName, PUBLIC_PREFIX);
+  }
+  
+  private static string GetRxVarName(string delegateName)
+  {
+    return DelegateWithPrefix(delegateName, PRIVATE_PREFIX);
+  }
+
+  private static string GetSignalBaseName(string delegateName)
+  {
+    return DelegateWithPrefix(delegateName, "");
+  }
+
+  private static string DelegateWithPrefix(string delegateName, string prefix, string suffixToTrim = "EventHandler")
+  {
+    // Step 1: Remove "EventHandler" suffix if present
+    var baseName = delegateName.EndsWith(suffixToTrim)
+      ? delegateName[..^suffixToTrim.Length]
       : delegateName;
 
-    const string PREFIX = "Is";
-    var index = PREFIX.Length;
+    var index = prefix.Length;
     // Step 2: Strip prefix only if it's a standalone prefix followed by an uppercase letter
-    if (baseName.StartsWith(PREFIX) && baseName.Length >= index && char.IsUpper(baseName[index]))
+    if (baseName.StartsWith(prefix) && baseName.Length >= index && char.IsUpper(baseName[index]))
     {
       baseName = baseName[index..];
     }
 
     // Step 3: Prefix with desired prefix
-    return $"{PREFIX}{baseName}";
+    return $"{prefix}{baseName}";
   }
+
 }

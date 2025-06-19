@@ -4,16 +4,23 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Genera
 
 internal class SignalEmitterGenerator
 {
-    internal static string GetEmitCall(string signalName, ParameterDefinition parameters)
+    internal static string GetEmitCall(string signalName, int parameterCount)
     {
-        var emitCall = parameters.Count switch
+        var emitCall = parameterCount switch
         {
-            0 => $"EmitSignal(nameof({signalName}))",
-            1 => $"EmitSignal(nameof({signalName}), value!)",
-            _ => $"EmitSignal(nameof({signalName}), {string.Join(", ", Enumerable.Range(1, parameters.Count).Select(i => $"value.Item{i}"))})",
+            0 => GetCustomEmitCall(signalName),
+            1 => GetCustomEmitCall(signalName, "value!"),
+            _ => GetCustomEmitCall(signalName, string.Join(", ", Enumerable.Range(1, parameterCount).Select(i => $"value.Item{i}"))),
         };
 
-        return emitCall;
+        return $"{emitCall};";
+    }
+
+    internal static string GetCustomEmitCall(string signalName, string? valueCode = null)
+    {
+        return valueCode is not null ?
+            $"EmitSignal(nameof({signalName}), {valueCode});" 
+            : $"EmitSignal(nameof({signalName}));";
     }
 
 }

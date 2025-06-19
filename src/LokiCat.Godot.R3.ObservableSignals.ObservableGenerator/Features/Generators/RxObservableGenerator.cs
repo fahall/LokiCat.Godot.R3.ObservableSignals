@@ -21,7 +21,7 @@ internal static class RxObservableGenerator
         var propertyName = $"On{signalName}";
 
         var emitBody = new StringBuilder();
-        emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalName, parameters) + ";");
+        emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalName, parameters.Count));
 
         if (inverseName is not null && BoolSignalCheck.IsSingleBoolParameter(parameters, model))
         {

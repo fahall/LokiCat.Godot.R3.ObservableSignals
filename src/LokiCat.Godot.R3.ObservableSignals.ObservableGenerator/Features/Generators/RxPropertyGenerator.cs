@@ -38,11 +38,11 @@ internal static class RxPropertyGenerator
     var connectedFlag = $"{fieldName}Connected";
 
     var emitBody = new StringBuilder();
-    emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters) + ";");
+    emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters.Count));
 
     if (inverseName is not null && BoolSignalCheck.IsSingleBoolParameter(parameters, model))
     {
-      emitBody.AppendLine($"EmitSignal(nameof({inverseName}), !value);");
+      emitBody.AppendLine(SignalEmitterGenerator.GetCustomEmitCall(inverseName, "!value!"));
     }
 
     var source = $$"""
@@ -79,6 +79,16 @@ internal static class RxPropertyGenerator
     context.AddSource($"{className}.{propertyName}.g.cs", SourceText.From(source, Encoding.UTF8));
   }
 
+  private static string GetSignalBaseName(string delegateName, string suffixToTrim = "EventHandler")
+  {
+    // Step 1: Remove "EventHandler" suffix if present
+    var baseName = delegateName.EndsWith(suffixToTrim)
+      ? delegateName[..^suffixToTrim.Length]
+      : delegateName;
+
+    return baseName;
+  }
+  
   /// <summary>
   /// Prefix name with Is unless it's already prefixed with Is.
   /// </summary>
@@ -86,30 +96,20 @@ internal static class RxPropertyGenerator
   /// <example>IsIsotopeEventHandler -> IsIsotope</example>
   /// <example>IsDeadEventHandler -> IsDead</example>
   /// <example>DeadEventHandler -> IsDead</example>
-  /// <param name="delegateName"></param>
+  /// <param name="baseName"></param>
   /// <returns></returns>
-  private static string GetRxPropertyName(string delegateName)
+  private static string GetRxPropertyName(string baseName)
   {
-    return DelegateWithPrefix(delegateName, PUBLIC_PREFIX);
+    return DelegateWithPrefix(baseName, PUBLIC_PREFIX);
   }
   
-  private static string GetRxVarName(string delegateName)
+  private static string GetRxVarName(string baseName)
   {
-    return DelegateWithPrefix(delegateName, PRIVATE_PREFIX);
+    return DelegateWithPrefix(baseName, PRIVATE_PREFIX);
   }
 
-  private static string GetSignalBaseName(string delegateName)
+  private static string DelegateWithPrefix(string baseName, string prefix)
   {
-    return DelegateWithPrefix(delegateName, "");
-  }
-
-  private static string DelegateWithPrefix(string delegateName, string prefix, string suffixToTrim = "EventHandler")
-  {
-    // Step 1: Remove "EventHandler" suffix if present
-    var baseName = delegateName.EndsWith(suffixToTrim)
-      ? delegateName[..^suffixToTrim.Length]
-      : delegateName;
-
     var index = prefix.Length;
     // Step 2: Strip prefix only if it's a standalone prefix followed by an uppercase letter
     if (baseName.StartsWith(prefix) && baseName.Length >= index && char.IsUpper(baseName[index]))
@@ -120,5 +120,4 @@ internal static class RxPropertyGenerator
     // Step 3: Prefix with desired prefix
     return $"{prefix}{baseName}";
   }
-
 }

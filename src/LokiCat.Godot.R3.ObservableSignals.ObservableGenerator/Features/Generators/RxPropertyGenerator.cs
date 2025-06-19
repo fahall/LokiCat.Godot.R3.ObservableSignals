@@ -16,6 +16,18 @@ internal static class RxPropertyGenerator
     string? inverseName,
     SemanticModel model)
   {
+    
+    context.ReportDiagnostic(Diagnostic.Create(
+                               new DiagnosticDescriptor(
+                                 "DEBUGPROP",
+                                 "Debug",
+                                 "Generating RxProp for: {0}",
+                                 "Debug",
+                                 DiagnosticSeverity.Info,
+                                 true),
+                               Location.None,
+                               delegateName));
+    
     var propertyName = GetRxPropertyName(delegateName);
     var signalBaseName = delegateName.EndsWith("EventHandler")
       ? delegateName[..^"EventHandler".Length]

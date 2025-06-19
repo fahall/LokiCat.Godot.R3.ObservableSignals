@@ -97,6 +97,17 @@ public sealed class SignalObservableGenerator : ISourceGenerator
             {
                 return;
             }
+            
+            context.ReportDiagnostic(Diagnostic.Create(
+                                         new DiagnosticDescriptor(
+                                             "DEBUGGEN",
+                                             "Debug",
+                                             "Processing delegate: {0}",
+                                             "Debug",
+                                             DiagnosticSeverity.Info,
+                                             true),
+                                         delegateDecl.GetLocation(),
+                                         delegateDecl.Identifier.Text));
 
             var className = classDecl.Identifier.Text;
             var ns = Namespace.GetNamespace(classDecl);

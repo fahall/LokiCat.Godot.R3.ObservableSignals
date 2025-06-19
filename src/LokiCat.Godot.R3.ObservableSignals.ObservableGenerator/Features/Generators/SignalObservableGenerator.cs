@@ -36,7 +36,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
         var allDelegates = tree.GetRoot()
                                .DescendantNodes()
                                .OfType<DelegateDeclarationSyntax>()
-                               .Where(d => d.Identifier.Text.EndsWith("EventHandler"))
+                               .Where(d => d.Identifier.Text.EndsWith(GodotSignalUtilities.GODOT_SIGNAL_SUFFIX))
                                .ToList();
 
         var inverseMap = InverseSignalUtilities.GetInverseSignalMap(context, allDelegates);
@@ -128,7 +128,6 @@ public sealed class SignalObservableGenerator : ISourceGenerator
             var model = context.Compilation.GetSemanticModel(delegateDecl.SyntaxTree);
 
             var delegateName = delegateDecl.Identifier.Text;
-            var signalName = delegateName[..^"EventHandler".Length];
 
             inverseMap.TryGetValue(delegateName, out var inverseName);
 
@@ -150,7 +149,7 @@ public sealed class SignalObservableGenerator : ISourceGenerator
                     context,
                     className,
                     ns,
-                    signalName,
+                    delegateName,
                     parameters,
                     inverseName,
                     model

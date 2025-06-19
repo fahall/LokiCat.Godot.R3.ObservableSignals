@@ -33,8 +33,8 @@ internal static class RxPropertyGenerator
       ? delegateName[..^"EventHandler".Length]
       : delegateName;
 
-    var fieldName = $"_now{propertyName}";
-    var connectedFlag = $"_now{propertyName}Connected";
+    var fieldName = $"_is{propertyName}";
+    var connectedFlag = $"_is{propertyName}Connected";
 
     var emitBody = new StringBuilder();
     emitBody.AppendLine(SignalEmitterGenerator.GetEmitCall(signalBaseName, parameters) + ";");

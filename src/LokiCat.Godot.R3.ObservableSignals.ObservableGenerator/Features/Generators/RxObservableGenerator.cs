@@ -7,8 +7,8 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Genera
 
 internal static class RxObservableGenerator
 {
-    private const string PUBLIC_PREFIX = "Is";
-    private const string PRIVATE_PREFIX = "_is";
+    private const string PUBLIC_PREFIX = "On";
+    private const string PRIVATE_PREFIX = "_on";
     private const string CONNECTION_FLAG_SUFFIX = "Connected";
 
     internal static void Emit(

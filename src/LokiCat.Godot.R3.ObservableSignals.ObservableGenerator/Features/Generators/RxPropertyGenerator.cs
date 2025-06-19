@@ -75,7 +75,7 @@ internal static class RxPropertyGenerator
                    }
                    """;
 
-    context.AddSource($"{className}.{propertyName}.rx.g.cs", SourceText.From(source, Encoding.UTF8));
+    context.AddSource($"{className}.{propertyName}.g.cs", SourceText.From(source, Encoding.UTF8));
   }
 
   /// <summary>

@@ -28,7 +28,7 @@ internal static partial class InverseSignalUtilities
 
         foreach (var delegateDecl in inverseSignalDelegates)
         {
-            var inverseName = delegateDecl.Identifier.Text[..^"EventHandler".Length];
+            var inverseName = GodotSignalUtilities.GetSignalBaseName(delegateDecl.Identifier.Text);
 
             var targetName = GetTargetName(context, delegateDecl, inverseName);
 
@@ -90,9 +90,17 @@ internal static partial class InverseSignalUtilities
     private static string InferTargetNameFromInverse(string inverseName)
     {
         // Removes all occurrences of the word "Not" or "Inverse" when they appear as full words
-        var stripped = MyRegex().Replace(inverseName, "");
-
-        return stripped + "EventHandler";
+        return $"{inverseName.WithoutNotOrInverse()}{GodotSignalUtilities.GODOT_SIGNAL_SUFFIX}";
+    }
+    
+    /// <summary>
+    /// Removes all occurrences of the word "Not" or "Inverse" when they appear as full words
+    /// </summary>
+    /// <param name="inverseName"></param>
+    /// <returns></returns>
+    private static string WithoutNotOrInverse(this string inverseName)
+    {
+        return MyRegex().Replace(inverseName, "");
     }
 
     [GeneratedRegex(@"\b(Not|Inverse)\b")]

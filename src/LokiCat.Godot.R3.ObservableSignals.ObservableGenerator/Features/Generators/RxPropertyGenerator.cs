@@ -49,7 +49,7 @@ internal static class RxPropertyGenerator
                    using System.CodeDom.Compiler;
                    using LokiCat.Godot.R3.RxProps;
 
-                   nameSpace {{nameSpace}};
+                   namespace {{nameSpace}};
 
                    public partial class {{className}} {
                      private readonly IRxVar<{{parameters.AggregateType}}> {{fieldName}} = new RxVar<{{parameters.AggregateType}}>();

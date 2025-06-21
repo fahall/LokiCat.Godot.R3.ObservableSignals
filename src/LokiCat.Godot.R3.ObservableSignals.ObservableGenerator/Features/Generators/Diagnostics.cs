@@ -25,6 +25,7 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
+
     public static readonly DiagnosticDescriptor MultipleInverseSignals = new(
         id: "SIGOBS005",
         title: "Multiple inverse signals",
@@ -33,15 +34,17 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true
     );
+
     public static readonly DiagnosticDescriptor EmitsSignalManually = new(
         id: "SIGOBS003",
         title: "Manual EmitSignal bypasses observable",
-        messageFormat: "EmitSignal(\"{0}\") is called directly, but will not emit to On{0} unless you also call _on{0}.OnNext(...)",
+        messageFormat:
+        "EmitSignal(\"{0}\") is called directly, but will not emit to On{0} unless you also call _on{0}.OnNext(...)",
         category: CATEGORY,
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
-    
+
     public static readonly DiagnosticDescriptor InverseOnRxSignal = new(
         id: "SIGOBS004",
         title: "Signal has conflicting attributes",
@@ -76,6 +79,15 @@ internal static class Diagnostics
         messageFormat: $"{nameof(SignalObservableExtensionGenerator)} is active in this compilation",
         category: nameof(SignalObservableExtensionGenerator),
         DiagnosticSeverity.Info,
+        isEnabledByDefault: true
+    );
+
+    public static readonly DiagnosticDescriptor InvalidDelegateName = new(
+        "SIGOBS998",
+        "Malformed delegate name",
+        "Delegate '{0}' does not end with 'EventHandler'",
+        Diagnostics.CATEGORY,
+        DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
 }

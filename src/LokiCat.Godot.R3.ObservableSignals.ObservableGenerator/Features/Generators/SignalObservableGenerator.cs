@@ -145,6 +145,15 @@ public sealed class SignalObservableGenerator : ISourceGenerator
             }
             else if (delegateDecl.HasAttribute(Attributes.RX_OBSERVABLE))
             {
+                if (!delegateName.EndsWith(GodotSignalUtilities.GODOT_SIGNAL_SUFFIX)) {
+                    context.ReportDiagnostic(Diagnostic.Create(
+                                                Diagnostics.InvalidDelegateName,
+                                                 delegateDecl.GetLocation(),
+                                                 delegateName
+                                             ));
+                    return;
+                }
+
                 RxObservableGenerator.Emit(
                     context,
                     className,

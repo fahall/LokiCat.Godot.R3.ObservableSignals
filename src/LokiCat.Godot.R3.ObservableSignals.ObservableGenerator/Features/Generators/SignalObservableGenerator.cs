@@ -50,25 +50,31 @@ public sealed class SignalObservableGenerator : ISourceGenerator
     private static void CheckAndProcessDelegate(GeneratorExecutionContext context, DelegateDeclarationSyntax delegateDecl,
         Dictionary<string, string> inverseMap)
     {
-        var descriptor = new DiagnosticDescriptor(
-            id: "DEBUG001",
-            title: "Debug Diagnostic",
-            messageFormat: "Generating for {0}",
-            category: "ObservableSignals",
-            DiagnosticSeverity.Info,
-            isEnabledByDefault: true
-        );
+        try { 
+            var descriptor = new DiagnosticDescriptor(
+                id: "DEBUG001",
+                title: "Debug Diagnostic",
+                messageFormat: "Generating for {0}",
+                category: "ObservableSignals",
+                DiagnosticSeverity.Info,
+                isEnabledByDefault: true
+            );
 
-        context.ReportDiagnostic(Diagnostic.Create(descriptor, delegateDecl.GetLocation(), delegateDecl.Identifier.Text));
+            context.ReportDiagnostic(Diagnostic.Create(descriptor, delegateDecl.GetLocation(), delegateDecl.Identifier.Text));
 
         
-        if (!ShouldProcessDelegate(context, delegateDecl))
+            if (!ShouldProcessDelegate(context, delegateDecl))
+            {
+                return;
+            }
+            ProcessDelegate(context, delegateDecl, inverseMap);
+        } catch (Exception ex)
         {
-            return;
+            context.ReportDiagnostic(Diagnostic.Create(
+                                         Diagnostics.GeneratorException(ex),
+                                         delegateDecl.GetLocation()
+                                     ));
         }
-
-        ProcessDelegate(context, delegateDecl, inverseMap);
-
     }
 
     private static bool ShouldProcessDelegate(GeneratorExecutionContext context, DelegateDeclarationSyntax delegateDecl)

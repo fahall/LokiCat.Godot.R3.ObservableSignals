@@ -1,4 +1,5 @@
 ﻿#nullable disable
+using System;
 using Microsoft.CodeAnalysis;
 
 namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Generators;
@@ -90,4 +91,16 @@ internal static class Diagnostics
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true
     );
+
+    public static DiagnosticDescriptor GeneratorException(Exception ex)
+    {
+        return new DiagnosticDescriptor(
+            "SIGOBS999",
+            "Generator Exception",
+            $"Unhandled exception: {ex.GetType().Name} - {ex.Message}",
+            Diagnostics.CATEGORY,
+            DiagnosticSeverity.Error,
+            isEnabledByDefault: true
+        );
+    }
 }

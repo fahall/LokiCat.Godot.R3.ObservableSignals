@@ -7,8 +7,12 @@ namespace LokiCat.Godot.R3.ObservableSignals.ObservableGenerator.Features.Genera
 
 internal static class RxPropertyGenerator
 {
-  private const string PUBLIC_PREFIX = "Is";
-  private const string PRIVATE_PREFIX = "_is";
+  private const string PUBLIC_PREFIX_BOOL = "Is";
+  private const string PRIVATE_PREFIX_BOOL = "_is";
+  
+  private const string PUBLIC_PREFIX = "Current";
+  private const string PRIVATE_PREFIX = "_current";
+  
   private const string CONNECTION_FLAG_SUFFIX = "Connected";
   
   internal static void Emit(
@@ -33,10 +37,17 @@ internal static class RxPropertyGenerator
                                delegateName));
     
     var signalBaseName = GodotSignalUtilities.GetSignalBaseName(delegateName);
-    var propertyName = signalBaseName.WithDedupedPrefix(PUBLIC_PREFIX);
-    var fieldName = signalBaseName.WithDedupedPrefix(PRIVATE_PREFIX);
+    // Choose prefixes based on whether the property type is bool
+    
+    var isBoolType = parameters.AggregateType == "bool";
+    var publicPrefix = isBoolType ? PUBLIC_PREFIX_BOOL : PUBLIC_PREFIX;
+    var privatePrefix = isBoolType ? PRIVATE_PREFIX_BOOL : PRIVATE_PREFIX;
+    
+    var propertyName = signalBaseName.WithDedupedPrefix(publicPrefix);
+    var fieldName = signalBaseName.WithDedupedPrefix(privatePrefix);
+    
     var connectedFlag = $"{fieldName}{CONNECTION_FLAG_SUFFIX}";
-
+    
     var emissionBody = new StringBuilder();
     emissionBody.AppendSignalWiring(signalBaseName, parameters.Count);
     emissionBody.AppendInverseSignalWiring(inverseName, parameters, model);
